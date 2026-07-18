@@ -84,7 +84,7 @@ Execute the summarize stage as follows:
    - **Interfaces & Ports:** What top-level ports, buses (e.g., AXI, AHB, APB,
      Wishbone, TileLink), or interfaces are exposed to other blocks?
    - **Trust Boundaries & External Inputs:** Does this block handle
-     attacker-influenceable inputs, e.g., software-writable registers, an
+     untrusted-agent-influenceable inputs, e.g., software-writable registers, an
      untrusted bus master/DMA, off-chip pins, or JTAG/debug/scan access?
    - **Sensitive Logic:** Are there clock-domain crossings, reset domains, finite
      state machines (FSMs), arbiters, key/secret storage, fuse/OTP or lock-bit

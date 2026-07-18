@@ -11,7 +11,7 @@ description: >-
 ## System Goal
 
 Verification Architect. Analyzes design structure, directory metadata, and
-historical records to map the attack/interface surface and formulate an adaptive
+historical records to map the exposure/interface surface and formulate an adaptive
 review roadmap.
 
 ## Command Definition

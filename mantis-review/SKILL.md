@@ -130,14 +130,16 @@ Execute your validation as follows:
        references are missing or incorrect, immediately mark the finding as a
        FALSE_POSITIVE to prevent downstream agents from wasting resources on
        hallucinated bugs.
-   13. **Verify Attacker Control of the Trigger (Threat-Boundary Tracing):**
+   13. **Verify Controllability of the Trigger (Threat-Boundary Tracing):**
        Before marking a finding VALID, confirm that the signals, registers, or
        state that trigger the bug are actually controllable through the design's
-       real interface and threat model — not merely reachable by artificially
-       forcing an internal net to an illegal value in simulation. Identify and
-       cite the `filename:line_number` where the triggering value enters the
-       analyzed RTL (the "Ingress Point") from an untrusted source and flows to
-       the buggy logic, OR where that state is driven by an untrusted writer.
+       real interface and threat model (bus channels, register writes, DMA
+       descriptor fields, cross-clock inputs) — not merely reachable by
+       artificially forcing an internal net to an illegal value in simulation.
+       Identify and cite the `filename:line_number` where the triggering value
+       enters the analyzed RTL (the "Ingress Point") from an untrusted source
+       and flows to the buggy logic, OR where that state is driven by an
+       untrusted writer.
        - If you have access to the driving RTL (e.g. an untrusted bus master or
          agent in a multi-module design), cite that writer.
        - If you only have access to the block under review, cite the interface
@@ -147,7 +149,7 @@ Execute your validation as follows:
        - If the triggering state is proven to originate solely from trusted
          on-chip origins (tied-off constants, hardwired straps, internal
          FSM-only state with no reachable interface path), mark FALSE_POSITIVE.
-         Keep the `attacker_position` field consistent with the cited ingress.
+         Keep the `access_position` field consistent with the cited ingress.
        - Exception: Do not apply this rule to Intrinsic Design Bugs (Rule 08)
          where the defect exists in the RTL independent of any active driver.
 
@@ -218,7 +220,7 @@ Execute your validation as follows:
        "refine_code_paths_strictly": { "outcome": "PASS" },
        "ignore_masked_or_tied_off_bits": { "outcome": "PASS" },
        "ensure_source_code_coherence": { "outcome": "PASS" },
-       "verify_attacker_control_of_trigger": { "outcome": "PASS" }
+       "verify_controllability_of_trigger": { "outcome": "PASS" }
      }
      ```
 

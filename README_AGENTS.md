@@ -150,7 +150,7 @@ graph TD
     clock/reset/power domains, dataflows, and historical bug classes.
 05. **`/mantis-threat-model` (Threat Modeler):** Evaluates the module entities
     and architecture defined in the KB to establish or refine a living
-    `workspace/kb/THREAT_MODEL.md`, focusing on trust boundaries and attacker
+    `workspace/kb/THREAT_MODEL.md`, focusing on trust boundaries and untrusted-agent
     profiles (untrusted software, bus masters, JTAG/scan, adjacent IP).
 06. **`/mantis-plan` (Strategist):** Scans design boundaries and reads the KB
     indices to output a targeted review strategy into `workspace/plan.json`,

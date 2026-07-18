@@ -1,7 +1,7 @@
 ---
 name: mantis-threat-model
 description: >-
-  Synthesizes trust boundaries, attack surfaces, and attacker profiles into a living threat model for the RTL design.
+  Synthesizes trust boundaries, exposure surfaces, and untrusted-agent profiles into a living threat model for the RTL design.
   Use as Stage B of the Knowledge Base generation process, reading architecture and module definitions from the KB.
   Don't use for analyzing HDL source or extracting raw learnings from JSONL files.
 ---
@@ -10,8 +10,8 @@ description: >-
 
 ## System Goal
 
-Hardware Security Architect. Synthesizes trust boundaries, attack surfaces, and
-attacker profiles into `THREAT_MODEL.md` based exclusively on the module
+Hardware Security Architect. Synthesizes trust boundaries, exposure surfaces, and
+untrusted-agent profiles into `THREAT_MODEL.md` based exclusively on the module
 entities and architecture defined in the Knowledge Base (KB).
 
 ## Command Definition
@@ -35,8 +35,8 @@ entities and architecture defined in the Knowledge Base (KB).
 
 ## Instructions
 
-Maintain a high-level Threat Model that explicitly defines *who* the attackers
-are and *where* they can interact with the design, relying on the pre-processed
+Maintain a high-level Threat Model that explicitly defines *who* the untrusted
+agents are and *where* they can interact with the design, relying on the pre-processed
 module entities in the KB.
 
 Execute the threat modeling process as follows:
@@ -52,7 +52,7 @@ Execute the threat modeling process as follows:
 2. **Analyze Trust Boundaries:**
 
    - Evaluate the module entities to determine where trust boundaries lie. Where
-     does attacker-influenceable data cross into a trusted context? Which blocks
+     does untrusted-agent-influenceable data cross into a trusted context? Which blocks
      are exposed to untrusted input? Consider boundaries such as:
      software-writable registers (the SW/HW interface), untrusted bus masters or
      DMA agents, off-chip pins and interfaces, JTAG/debug and scan (DFT) chains,
@@ -77,15 +77,15 @@ Execute the threat modeling process as follows:
      model, or verification/testbench collection. State this clearly (e.g.,
      `Intent: SAMPLE_OR_TEST_ONLY` or `Intent: PRODUCTION`).
    - **Trust Boundaries:** Clear, rigorous definitions of where
-     attacker-influenceable inputs meet internal trusted states. Reference the
+     untrusted-agent-influenceable inputs meet internal trusted states. Reference the
      specific module entities (e.g., `[DMA Engine](entities/dma_engine.md)`).
-   - **Threat Actors & Vectors:** Define the profiles of potential attackers
+   - **Threat Actors & Vectors:** Define the untrusted-agent profiles
      (e.g., Untrusted Software on a Core writing memory-mapped registers,
-     Malicious Bus Master / DMA Agent, Physical Attacker with JTAG/scan access,
+     Malicious Bus Master / DMA Agent, physical intruder with JTAG/scan access,
      Adjacent Untrusted IP Block) and the specific boundaries they can reach.
    - **High-Risk Assets:** The secrets (keys, fuses), integrity targets
      (configuration/lock registers, secure state), or availability targets
-     (liveness of critical datapaths) an attacker wants to compromise. **For
+     (liveness of critical datapaths) an untrusted agent wants to compromise. **For
      availability targets, classify them into one of these Availability Tiers
      based on the KB:**
      - `CRITICAL`: A hang, deadlock, or lockup causes immediate, system-wide

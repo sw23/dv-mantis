@@ -112,7 +112,7 @@ Execute your task as follows:
         items.
       - **Privileges Required:** Inherit the most severe privilege requirement
         (priority: `NONE` > `LOW` > `HIGH`).
-      - **Attacker Position:** Inherit the most critical position requirement
+      - **Access Position:** Inherit the most critical position requirement
         (priority: `EXTERNAL` > `INTERNAL_NETWORK` > `IN_CLUSTER` > `LOCAL` >
         `HOST_SYSTEM` > `SUPPLY_CHAIN` > `PHYSICAL_TEMPORARY` >
         `PHYSICAL_LONG_TERM`).

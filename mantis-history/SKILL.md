@@ -111,7 +111,7 @@ Execute the history analysis stage as follows:
      minimize API calls.
    - **Missing Information:** Do not overindex on the lack of bug-related
      keywords. Many RTL bugs are fixed without formal tracking, and many design
-     flaws are corrected without the author realizing they were exploitable or
+     flaws are corrected without the author realizing they were triggerable or
      silicon-affecting.
    - **Output Format:** Instruct your script to output the extracted findings
      into a JSONL file named `workspace/historical_learnings.jsonl`, matching

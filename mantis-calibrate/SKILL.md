@@ -30,7 +30,7 @@ produce a final risk score (1-10).
 - **Writes**:
   - Updates finding files in-place with scoring/calibration fields
     (`impact_score`, `likelihood_score`, `availability_tier`,
-    `inferred_exposure`, `attacker_position`, `mantis_risk_score`, `priority`,
+    `inferred_exposure`, `access_position`, `mantis_risk_score`, `priority`,
     `sanity_triage_applied`, `calibration_checklist`, `outrage_commentary`,
     `executive_summary`).
   - Reusable helper script `workspace/helpers/append_calibrate.py`.
@@ -77,8 +77,8 @@ Execute the calibration as follows:
      - 5: Complete, systemic loss of Confidentiality (full extraction of a root
        secret/key) or Integrity (compromise of the hardware root of trust, or
        arbitrary control of secure configuration/execution) by an unprivileged
-       attacker who isn't already in an effective position to control the
-       hardware. MUST NOT be used for attackers who already hold equivalent
+       untrusted agent who isn't already in an effective position to control the
+       hardware. MUST NOT be used for untrusted agents who already hold equivalent
        privileges (e.g., secure-world firmware or physical JTAG/debug access).
      - 4: Substantial loss in one or more areas. This includes systemic
        Availability loss (an unrecoverable hang/lockup of a major datapath
@@ -87,9 +87,9 @@ Execute the calibration as follows:
      - 3: Moderate loss (e.g., partial secret exposure, temporary or partial
        datapath disruption).
      - 2: Minor loss (e.g., minor information leak, localized glitch). A bug
-       whose blast radius is limited to affecting *only the attacker's own
+       whose blast radius is limited to affecting *only the untrusted agent's own
        already-accessible partition or resource* MUST NOT be scored higher than
-       2. *Exception:* If the action lacks non-repudiation (e.g., the attacker
+       2. *Exception:* If the action lacks non-repudiation (e.g., the untrusted agent
        can corrupt shared state and plausibly deny it), or triggers side-effects
        affecting other agents/domains or overall system stability, it should not
        be downgraded.
@@ -109,7 +109,7 @@ Execute the calibration as follows:
        - If the finding requires **HIGH** privileges (e.g., secure-world
          firmware, physical debug/JTAG access) or only allows lateral
          movement/pivoting between internal blocks from an already compromised
-         state, cap its individual Impact score at **2**, unless the exploit
+         state, cap its individual Impact score at **2**, unless the trigger path
          escapes to a cross-domain (secure/non-secure) or systemic SoC position.
        - If the finding requires **LOW** privileges (e.g., a partially-trusted
          or non-secure agent), cap its individual Impact score at **3** (unless
@@ -167,17 +167,17 @@ Execute the calibration as follows:
              `"INTERNAL"` exposure.
            - If the finding description, history, or critic reasoning suggests
              the block is "rarely exposed", "internal only", or "unlikely to be
-             attacker-reachable", reduce the Exposure Multiplier to **0.5** or
+             untrusted-agent-reachable", reduce the Exposure Multiplier to **0.5** or
              lower.
-       - **Map Exposure and Attacker Position Metadata:**
+       - **Map Exposure and Untrusted Agent Position Metadata:**
          - Resolve **`inferred_exposure`** based on the Interface/Trust Exposure
            multiplier:
            - Multiplier 1.0 (Exposed Interface) -> `"EXPOSED"`
            - Multiplier 0.8 (Internal Block) -> `"INTERNAL"`
            - Multiplier 0.5 (Privileged/Trusted Zone) -> `"PRIVILEGED"`
-         - **Evaluate Attacker Position (declared in finding):**
-           - Read `attacker_position` from the finding JSON.
-           - **Determine by Barrier, Not Transport:** The `attacker_position`
+         - **Evaluate Untrusted Agent Position (declared in finding):**
+           - Read `access_position` from the finding JSON.
+           - **Determine by Barrier, Not Transport:** The `access_position`
              must represent the outermost boundary that the **first untrusted
              master/agent** (the ultimate external threat actor) must cross to
              reach the interface. Do not key on the on-chip transport (e.g.,
@@ -230,18 +230,18 @@ Execute the calibration as follows:
              - `"EXTERNAL"`: If the block is `"EXPOSED"`, or it's an
                access-control bypass on an externally-reachable interface.
              - `"LOCAL"`: If it's a local debug/scan-based escalation or
-               on-board access exploit.
+               on-board access trigger path.
              - `"IN_CLUSTER"`: If it targets shared on-chip infrastructure
                (interconnect, shared cache, IOMMU) from a peer block.
-             - `"HOST_SYSTEM"`: If the attacker is a more-privileged host domain
+             - `"HOST_SYSTEM"`: If the untrusted agent is a more-privileged host domain
                (secure-world firmware, host SoC/CPU) or an external device
-               attacking the logic it interfaces with (e.g., a malicious
-               peripheral attacking its host controller). This enum is strictly
+               targeting the logic it interfaces with (e.g., a malicious
+               peripheral targeting its host controller). This enum is strictly
                for the outer-to-inner (host-to-block) direction. The reverse
                direction — block-to-host escape,
                isolated-environment-to-outside, or contained-agent-to-parent —
                must be classified as `"LOCAL"` (or `"IN_CLUSTER"` for a
-               peer-block-to-fabric escalation; a guest block attacking its host
+               peer-block-to-fabric escalation; a guest block targeting its host
                controller is "LOCAL"), never `"HOST_SYSTEM"`.
              - `"PHYSICAL_LONG_TERM"` / `"PHYSICAL_TEMPORARY"`: If the bug
                description, title, or code path indicates hardware fault
@@ -252,17 +252,17 @@ Execute the calibration as follows:
              - `"INTERNAL_NETWORK"`: Default fallback for other internal on-chip
                blocks.
            - **Align Exposure with Position:**
-             - If the `attacker_position` is `"LOCAL"` or `"IN_CLUSTER"`, you
+             - If the `access_position` is `"LOCAL"` or `"IN_CLUSTER"`, you
                **MUST** resolve `inferred_exposure` to `"INTERNAL"` (using 0.8
                multiplier) even if the flawed logic resides in a block mapped to
-               `"EXPOSED"` in the Threat Model, unless the exploit explicitly
+               `"EXPOSED"` in the Threat Model, unless the trigger path explicitly
                escapes its domain to a cross-domain/systemic position.
-             - If the `attacker_position` is `"INTERNAL_NETWORK"`, you **MUST**
+             - If the `access_position` is `"INTERNAL_NETWORK"`, you **MUST**
                resolve `inferred_exposure` to at most `"INTERNAL"` (using 0.8
                multiplier or lower) even if the block is mapped to `"EXPOSED"`
                in the Threat Model, as the interface is not directly reachable
                from off-chip.
-             - If the `attacker_position` is `"EXTERNAL"`, you **MUST** resolve
+             - If the `access_position` is `"EXTERNAL"`, you **MUST** resolve
                `inferred_exposure` to `"EXPOSED"` (using 1.0 multiplier) even if
                the block is mapped to `"INTERNAL"` or `"PRIVILEGED"` in the
                Threat Model (reflecting that untrusted external inputs reach the
@@ -330,8 +330,8 @@ Execute the calibration as follows:
 
    **Core Principle - Marginal Capability:** The final severity and priority of
    a finding are strictly bounded by the *marginal capability* gained by the
-   attacker over their prerequisite position. If the exploit does not grant the
-   attacker significant new control, access, or capabilities beyond what is
+   untrusted agent over their prerequisite position. If the trigger path does not grant the
+   untrusted agent significant new control, access, or capabilities beyond what is
    already inherent to their starting position (or already possessed via
    legitimate means), the finding must be capped or downgraded.
 
@@ -367,7 +367,7 @@ Execute the calibration as follows:
      review is required to resolve the rule status.
    - Record every rule that successfully fired/applied in
      `sanity_triage_applied` as a semicolon-separated list, most restrictive
-     first (e.g., `"Local Attack Vector; Internal/Nested"`), appended after any
+     first (e.g., `"Local Access Vector; Internal/Nested"`), appended after any
      UNKNOWN warnings if present, so the effective cap remains fully auditable.
 
 4. **Determine Priority:**
@@ -376,7 +376,7 @@ Execute the calibration as follows:
      (e.g. high impact and likelihood). **Must NOT be used unless it represents
      a clear systemic compromise (secret/key extraction, root-of-trust bypass,
      or arbitrary secure control equivalent to total loss) by an unprivileged
-     attacker (where `privileges_required` is **NONE**) who is not already in an
+     untrusted agent (where `privileges_required` is **NONE**) who is not already in an
      effective position to compromise the hardware, AND `user_interaction` is
      **NONE** (no special mode/sequence required). This rule is absolute: even
      if a finding (like a cross-domain escape) has its Section 3 caps lifted, if
@@ -392,7 +392,7 @@ Execute the calibration as follows:
      scheduled.
    - **LOW (0.1 - 2.9):** Low priority. Minimal hazard. **Any finding of the
      type "the RTL is fragile", purely hygiene/defense-in-depth, or one that
-     exclusively affects the attacker's own resource MUST be capped at LOW
+     exclusively affects the untrusted agent's own resource MUST be capped at LOW
      priority regardless of the calculated score (unless the exception for lack
      of non-repudiation or broader side-effects applies).**
 
@@ -415,7 +415,7 @@ Execute the calibration as follows:
 
    - `"inferred_exposure"` (EXPOSED, INTERNAL, or PRIVILEGED)
 
-   - `"attacker_position"` (preserved from input, or populated from fallback
+   - `"access_position"` (preserved from input, or populated from fallback
      inference if missing)
 
    - `"mantis_risk_score"` (the final Hazard score)
@@ -441,7 +441,7 @@ Execute the calibration as follows:
        "prerequisite_shell": { "outcome": "APPLIES" | "DOES_NOT_APPLY" | "UNKNOWN", "reason": "<string>" },
        "physical_long_term": { "outcome": "APPLIES" | "DOES_NOT_APPLY" | "UNKNOWN", "reason": "<string>" },
        "trusted_controller_zero_delta": { "outcome": "APPLIES" | "DOES_NOT_APPLY" | "UNKNOWN", "reason": "<string>" },
-       "standard_host_attacks": { "outcome": "APPLIES" | "DOES_NOT_APPLY" | "UNKNOWN", "reason": "<string>" },
+       "standard_host_access": { "outcome": "APPLIES" | "DOES_NOT_APPLY" | "UNKNOWN", "reason": "<string>" },
        "static_confirmation": { "outcome": "APPLIES" | "DOES_NOT_APPLY" | "UNKNOWN", "reason": "<string>" },
        "strict_xss": { "outcome": "APPLIES" | "DOES_NOT_APPLY" | "UNKNOWN", "reason": "<string>" },
        "internal_nested": { "outcome": "APPLIES" | "DOES_NOT_APPLY" | "UNKNOWN", "reason": "<string>" },
@@ -450,7 +450,7 @@ Execute the calibration as follows:
        "non_default_config": { "outcome": "APPLIES" | "DOES_NOT_APPLY" | "UNKNOWN", "reason": "<string>" },
        "confidential_computing_host": { "outcome": "APPLIES" | "DOES_NOT_APPLY" | "UNKNOWN", "reason": "<string>" },
        "trusted_controller_critical_bypass": { "outcome": "APPLIES" | "DOES_NOT_APPLY" | "UNKNOWN", "reason": "<string>" },
-       "local_attack_vector": { "outcome": "APPLIES" | "DOES_NOT_APPLY" | "UNKNOWN", "reason": "<string>" },
+       "local_access_vector": { "outcome": "APPLIES" | "DOES_NOT_APPLY" | "UNKNOWN", "reason": "<string>" },
        "self_contained_blast": { "outcome": "APPLIES" | "DOES_NOT_APPLY" | "UNKNOWN", "reason": "<string>" },
        "rarely_exposed": { "outcome": "APPLIES" | "DOES_NOT_APPLY" | "UNKNOWN", "reason": "<string>" },
        "equivalent_primitives": { "outcome": "APPLIES" | "DOES_NOT_APPLY" | "UNKNOWN", "reason": "<string>" },

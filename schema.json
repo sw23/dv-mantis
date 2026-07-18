@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "Mantis Pipeline State Contract",
-  "description": "Canonical schemas for all inter-stage state contracts in the Mantis pipeline (hardware / RTL design-bug finding fork).\n\n### Validation Guidelines:\n- Harness authors and pipeline orchestrators should validate specific state files against their corresponding sub-schemas:\n  - Validate individual finding files (`workspace/findings/<uuid>.json`) against `#/$defs/finding`.\n  - Validate plan files (`workspace/plan.json`) against `#/$defs/plan`.\n  - Validate learning entry lines (`workspace/learnings.jsonl` / `workspace/historical_learnings.jsonl`) against `#/$defs/learning_entry`.\n  - Validate the orchestrator state file (`workspace/.mantis_state.json`) against `#/$defs/state`.\n  - Validate each stage's terminal result footer against `#/$defs/harness_result` (see 'Harness Result Contract' below).\n  - Validate trajectory/conversation transcript lines (e.g., in `transcript.jsonl` log files) against `#/$defs/execution_log_entry`.\n\n### Non-JSON Contracts:\n#### Threat Model (workspace/kb/THREAT_MODEL.md)\nWhile the threat model is a Markdown document, it serves as a contract. It must contain:\n- **System Overview Summary**: High-level design.\n- **Deployment Intent**: Must state 'Intent: PRODUCTION' or 'Intent: SAMPLE_OR_TEST_ONLY'.\n- **Trust Boundaries**: Zone definitions and entry points.\n- **Threat Actors & Vectors**: Attacker profiles.\n- **High-Risk Assets & Criticality**: Asset definitions. For availability/DoS targets, must specify Availability Tier: 'CRITICAL' (immediate, system-wide loss of function with no recovery short of a full reset), 'STANDARD' (short recoverable disruptions tolerable), or 'LOW_CRITICALITY' (non-blocking utilities).\n\n#### Harness Result Contract (per-stage terminal output)\nEvery stage's final message MUST end with a single fenced ```json block \u2014 the result footer, matching `#/$defs/harness_result` \u2014 so a deterministic orchestrator can learn a stage's outcome without parsing prose. In a harness there is no user, only the orchestrator reading this footer: emit exactly one footer as the last thing in the response and print no finding bodies before it (return ids, not bodies).\n\n#### Risk Calibration Formula (canonical)\n/mantis-calibrate documents the full rubric; this fixes the numeric contract so a deterministic harness (or a cheaper model) computes the same score:\n- Impact (1-5) and Likelihood (1-5) as defined in /mantis-calibrate.\n- Context Multiplier (0.1-1.0): exposure \u00d7 asset-criticality \u00d7 (0.7 if user_interaction == 'REQUIRED'); SAMPLE_OR_TEST \u21d2 ~0.4.\n- Hazard (mantis_risk_score) = (Impact + Likelihood) \u00d7 Multiplier, capped to [0.1, 10.0].\n- Invalidation: if status == 'FALSE_POSITIVE' or production_viability == 'NON_VIABLE', drop from scoring (a harness MAY floor it to 0.1 / LOW instead of deleting, to keep an auditable record).\n- Evidence caps: repro_status \u2208 {failed_to_reproduce, not_attempted} \u21d2 cap Hazard at 2.0 (LOW); statically_confirmed \u21d2 cap likelihood_score at 3, apply a 0.8 Hazard multiplier, and cap at 7.9 (never CRITICAL).\n- Priority bands: CRITICAL 8.0-10.0, HIGH 6.0-7.9, MEDIUM 3.0-5.9, LOW 0.1-2.9.\n\n#### Harness-Mode Overrides (state & sandbox tools)\nThe skills are written to also run standalone from an interactive CLI, so by default they instruct the agent to write one-off helper scripts to mutate JSON state and to invoke simulators/formal tools directly. In a deterministic harness, the orchestrator SHOULD override both by providing typed tools, and the skills defer to them when present:\n- State updates: when the harness exposes a finding-store tool (create/read/update/append-history/delete/merge), the agent MUST use it instead of writing workspace/helpers/*.py, keeping the harness the sole owner of the schema.\n- Simulation / formal execution: when the harness exposes a sandboxed execution tool, AI-generated testbenches, SVA, and formal harnesses MUST be run only through it (never via arbitrary host shell), so untrusted generated code stays contained.\nStandalone runs, where no such tools are provided, fall back to the in-skill script/CLI instructions unchanged.\n",
+  "description": "Canonical schemas for all inter-stage state contracts in the Mantis pipeline (hardware / RTL design-bug finding fork).\n\n### Validation Guidelines:\n- Harness authors and pipeline orchestrators should validate specific state files against their corresponding sub-schemas:\n  - Validate individual finding files (`workspace/findings/<uuid>.json`) against `#/$defs/finding`.\n  - Validate plan files (`workspace/plan.json`) against `#/$defs/plan`.\n  - Validate learning entry lines (`workspace/learnings.jsonl` / `workspace/historical_learnings.jsonl`) against `#/$defs/learning_entry`.\n  - Validate the orchestrator state file (`workspace/.mantis_state.json`) against `#/$defs/state`.\n  - Validate each stage's terminal result footer against `#/$defs/harness_result` (see 'Harness Result Contract' below).\n  - Validate trajectory/conversation transcript lines (e.g., in `transcript.jsonl` log files) against `#/$defs/execution_log_entry`.\n\n### Non-JSON Contracts:\n#### Threat Model (workspace/kb/THREAT_MODEL.md)\nWhile the threat model is a Markdown document, it serves as a contract. It must contain:\n- **System Overview Summary**: High-level design.\n- **Deployment Intent**: Must state 'Intent: PRODUCTION' or 'Intent: SAMPLE_OR_TEST_ONLY'.\n- **Trust Boundaries**: Zone definitions and entry points.\n- **Threat Actors & Vectors**: Untrusted-agent profiles.\n- **High-Risk Assets & Criticality**: Asset definitions. For availability/DoS targets, must specify Availability Tier: 'CRITICAL' (immediate, system-wide loss of function with no recovery short of a full reset), 'STANDARD' (short recoverable disruptions tolerable), or 'LOW_CRITICALITY' (non-blocking utilities).\n\n#### Harness Result Contract (per-stage terminal output)\nEvery stage's final message MUST end with a single fenced ```json block \u2014 the result footer, matching `#/$defs/harness_result` \u2014 so a deterministic orchestrator can learn a stage's outcome without parsing prose. In a harness there is no user, only the orchestrator reading this footer: emit exactly one footer as the last thing in the response and print no finding bodies before it (return ids, not bodies).\n\n#### Risk Calibration Formula (canonical)\n/mantis-calibrate documents the full rubric; this fixes the numeric contract so a deterministic harness (or a cheaper model) computes the same score:\n- Impact (1-5) and Likelihood (1-5) as defined in /mantis-calibrate.\n- Context Multiplier (0.1-1.0): exposure \u00d7 asset-criticality \u00d7 (0.7 if user_interaction == 'REQUIRED'); SAMPLE_OR_TEST \u21d2 ~0.4.\n- Hazard (mantis_risk_score) = (Impact + Likelihood) \u00d7 Multiplier, capped to [0.1, 10.0].\n- Invalidation: if status == 'FALSE_POSITIVE' or production_viability == 'NON_VIABLE', drop from scoring (a harness MAY floor it to 0.1 / LOW instead of deleting, to keep an auditable record).\n- Evidence caps: repro_status \u2208 {failed_to_reproduce, not_attempted} \u21d2 cap Hazard at 2.0 (LOW); statically_confirmed \u21d2 cap likelihood_score at 3, apply a 0.8 Hazard multiplier, and cap at 7.9 (never CRITICAL).\n- Priority bands: CRITICAL 8.0-10.0, HIGH 6.0-7.9, MEDIUM 3.0-5.9, LOW 0.1-2.9.\n\n#### Harness-Mode Overrides (state & sandbox tools)\nThe skills are written to also run standalone from an interactive CLI, so by default they instruct the agent to write one-off helper scripts to mutate JSON state and to invoke simulators/formal tools directly. In a deterministic harness, the orchestrator SHOULD override both by providing typed tools, and the skills defer to them when present:\n- State updates: when the harness exposes a finding-store tool (create/read/update/append-history/delete/merge), the agent MUST use it instead of writing workspace/helpers/*.py, keeping the harness the sole owner of the schema.\n- Simulation / formal execution: when the harness exposes a sandboxed execution tool, AI-generated testbenches, SVA, and formal harnesses MUST be run only through it (never via arbitrary host shell), so untrusted generated code stays contained.\nStandalone runs, where no such tools are provided, fall back to the in-skill script/CLI instructions unchanged.\n",
   "type": "object",
   "properties": {
     "finding": {
@@ -73,7 +73,7 @@
           "enum": ["NONE", "LOW", "HIGH"],
           "description": "Privilege level needed to trigger the bug.\n- 'NONE': Untrusted / unprivileged access (e.g., untrusted software in user/normal mode, off-chip pins, an untrusted bus master/DMA agent).\n- 'LOW': Partially-trusted or authenticated agent (e.g., non-secure world, a low-privilege bus master).\n- 'HIGH': High-privilege context (e.g., secure-world firmware, physical JTAG/scan/debug access)."
         },
-        "attacker_position": {
+        "access_position": {
           "type": "string",
           "enum": [
             "EXTERNAL",
@@ -85,7 +85,7 @@
             "PHYSICAL_TEMPORARY",
             "PHYSICAL_LONG_TERM"
           ],
-          "description": "The starting position of the attacker required to trigger the bug.\n- 'EXTERNAL': Off-chip / external interface (pins, ports, radio).\n- 'INTERNAL_NETWORK': On-chip interconnect / NoC / bus fabric.\n- 'IN_CLUSTER': A co-located IP block or adjacent bus master on the same SoC.\n- 'LOCAL': Untrusted software running on a local core.\n- 'HOST_SYSTEM': Host SoC / secure-world / higher-privilege firmware context.\n- 'SUPPLY_CHAIN': Third-party or encrypted IP, or the synthesis/build flow.\n- 'PHYSICAL_TEMPORARY': Temporary physical access (e.g., JTAG/scan/debug during bring-up).\n- 'PHYSICAL_LONG_TERM': Sustained physical access (e.g., probing, fault injection)."
+          "description": "The starting position of the untrusted agent required to trigger the bug.\n- 'EXTERNAL': Off-chip / external interface (pins, ports, radio).\n- 'INTERNAL_NETWORK': On-chip interconnect / NoC / bus fabric.\n- 'IN_CLUSTER': A co-located IP block or adjacent bus master on the same SoC.\n- 'LOCAL': Untrusted software running on a local core.\n- 'HOST_SYSTEM': Host SoC / secure-world / higher-privilege firmware context.\n- 'SUPPLY_CHAIN': Third-party or encrypted IP, or the synthesis/build flow.\n- 'PHYSICAL_TEMPORARY': Temporary physical access (e.g., JTAG/scan/debug during bring-up).\n- 'PHYSICAL_LONG_TERM': Sustained physical access (e.g., probing, fault injection)."
         },
         "user_interaction": {
           "type": "string",
@@ -258,7 +258,7 @@
         "severity",
         "mitigation",
         "history",
-        "attacker_position",
+        "access_position",
         "privileges_required",
         "user_interaction",
         "status"
@@ -807,7 +807,7 @@
         "refine_code_paths_strictly": { "$ref": "#/$defs/triage_rule_evaluation" },
         "ignore_simd_vector_padding": { "$ref": "#/$defs/triage_rule_evaluation" },
         "ensure_source_code_coherence": { "$ref": "#/$defs/triage_rule_evaluation" },
-        "verify_attacker_control_of_source": { "$ref": "#/$defs/triage_rule_evaluation" }
+        "verify_controllability_of_trigger": { "$ref": "#/$defs/triage_rule_evaluation" }
       },
       "required": [
         "ignore_hypothetical_misuse",
@@ -822,7 +822,7 @@
         "refine_code_paths_strictly",
         "ignore_simd_vector_padding",
         "ensure_source_code_coherence",
-        "verify_attacker_control_of_source"
+        "verify_controllability_of_trigger"
       ],
       "additionalProperties": false
     },
@@ -874,7 +874,7 @@
         "prerequisite_shell": { "$ref": "#/$defs/calibration_rule_evaluation" },
         "physical_long_term": { "$ref": "#/$defs/calibration_rule_evaluation" },
         "trusted_controller_zero_delta": { "$ref": "#/$defs/calibration_rule_evaluation" },
-        "standard_host_attacks": { "$ref": "#/$defs/calibration_rule_evaluation" },
+        "standard_host_access": { "$ref": "#/$defs/calibration_rule_evaluation" },
         "static_confirmation": { "$ref": "#/$defs/calibration_rule_evaluation" },
         "strict_xss": { "$ref": "#/$defs/calibration_rule_evaluation" },
         "internal_nested": { "$ref": "#/$defs/calibration_rule_evaluation" },
@@ -883,7 +883,7 @@
         "non_default_config": { "$ref": "#/$defs/calibration_rule_evaluation" },
         "confidential_computing_host": { "$ref": "#/$defs/calibration_rule_evaluation" },
         "trusted_controller_critical_bypass": { "$ref": "#/$defs/calibration_rule_evaluation" },
-        "local_attack_vector": { "$ref": "#/$defs/calibration_rule_evaluation" },
+        "local_access_vector": { "$ref": "#/$defs/calibration_rule_evaluation" },
         "self_contained_blast": { "$ref": "#/$defs/calibration_rule_evaluation" },
         "rarely_exposed": { "$ref": "#/$defs/calibration_rule_evaluation" },
         "equivalent_primitives": { "$ref": "#/$defs/calibration_rule_evaluation" },
@@ -903,7 +903,7 @@
         "prerequisite_shell",
         "physical_long_term",
         "trusted_controller_zero_delta",
-        "standard_host_attacks",
+        "standard_host_access",
         "static_confirmation",
         "strict_xss",
         "internal_nested",
@@ -912,7 +912,7 @@
         "non_default_config",
         "confidential_computing_host",
         "trusted_controller_critical_bypass",
-        "local_attack_vector",
+        "local_access_vector",
         "self_contained_blast",
         "rarely_exposed",
         "equivalent_primitives",

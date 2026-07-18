@@ -109,8 +109,8 @@ Execute the chaining stage as follows:
      starts with an unprivileged register write (NONE) that unlocks a protected
      path, which is then used to extract a key, the chain's `privileges_required`
      must be set to `NONE`.
-   - **Determine Attacker Position**: The `attacker_position` field for the
-     chain must inherit the attacker position from the entry point / first
+   - **Determine Access Position**: The `access_position` field for the
+     chain must inherit the access position from the entry point / first
      constituent finding of the chain.
    - **Determine User Interaction Requirement**: The `user_interaction` field for
      the chain must be set to `REQUIRED` if the entry point or any step in the
@@ -145,7 +145,7 @@ Execute the chaining stage as follows:
        "relative/path/module_A.sv:line_number",
        "relative/path/module_B.sv:line_number"
      ],
-     "attacker_position": "EXTERNAL / INTERNAL_NETWORK / IN_CLUSTER / LOCAL / HOST_SYSTEM / SUPPLY_CHAIN / PHYSICAL_TEMPORARY / PHYSICAL_LONG_TERM (inherited from entry point)",
+     "access_position": "EXTERNAL / INTERNAL_NETWORK / IN_CLUSTER / LOCAL / HOST_SYSTEM / SUPPLY_CHAIN / PHYSICAL_TEMPORARY / PHYSICAL_LONG_TERM (inherited from entry point)",
      "mitigation": "Recommended strategy to break the chain. Usually involves fixing at least one, if not all, of the underlying links.",
      "status": "VALID",
      "production_viability": "VIABLE / SAMPLE_OR_TEST / CONDITIONAL_VIABLE",

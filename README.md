@@ -174,7 +174,7 @@ graph TD
     clock/reset/power domains, dataflows, and historical bug classes.
 5.  **`/mantis-threat-model` (Threat Modeler):** Evaluates the module entities
     and architecture defined in the KB to establish or refine a living
-    `workspace/kb/THREAT_MODEL.md`, focusing on trust boundaries and attacker
+    `workspace/kb/THREAT_MODEL.md`, focusing on trust boundaries and untrusted-agent
     profiles (untrusted software, bus masters, JTAG/scan, adjacent IP).
 6.  **`/mantis-plan` (Strategist):** Scans design boundaries and reads the KB
     indices to output a targeted review strategy into `plan.json`, injecting
@@ -769,7 +769,7 @@ ______________________________________________________________________
   Researcher's `SKILL.md` instructions to explicitly filter out that specific
   pattern before it even reaches the Review stage. **Security Note:** Committing
   automated changes to `SKILL.md` files must always be human-gated to prevent an
-  attacker from using prompt injection (e.g., via a malicious payload in a target
+  untrusted agent from using prompt injection (e.g., via a malicious payload in a target
   IP file) to trick the meta-agent into ignoring a bug class globally.
 - **Silicon Dark Factory:** Integrate this pipeline into an entirely AI-driven
   hardware development flow. Instead of design-bug discovery for action by

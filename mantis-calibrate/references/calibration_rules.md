@@ -70,7 +70,7 @@ ______________________________________________________________________
     reaching a higher-privilege domain), which should cap at MEDIUM.
 
 09. **`physical_long_term` (Physical Long-Term / Laboratory Access)** If the
-    attack requires long-term physical access to the device or specialized
+    access requires long-term physical access to the device or specialized
     laboratory equipment (e.g., fault injection, side-channel analysis, chip
     decapping). Force-downgrade to **LOW (2.0)** due to the extreme execution
     barrier and requirement for physical possession.
@@ -83,10 +83,10 @@ ______________________________________________________________________
     triggering the bug grants **zero marginal capability** (i.e., the controller
     could already achieve the identical effect via its standard, legitimate
     interface), force-downgrade to **LOW (2.0)**. (This generalizes the
-    *Standard Host-to-Guest Attacks* rule below).
+    *Standard Host-to-Guest Accesses* rule below).
 
-11. **`standard_host_attacks` (Standard Host-to-Guest Attacks)** If the
-    `attacker_position` is `HOST_SYSTEM` (the SoC host/firmware acting on a peer
+11. **`standard_host_access` (Standard Host-to-Guest Accesses)** If the
+    `access_position` is `HOST_SYSTEM` (the SoC host/firmware acting on a peer
     block) on standard, non-isolated deployments. Force-downgrade to **LOW
     (2.0)** as the host already possesses total designed-in control over the
     peer block, meaning the bug offers zero marginal capability over the
@@ -94,7 +94,7 @@ ______________________________________________________________________
     as non-isolated (this rule fires) UNLESS the Threat Model, RTL path, or
     finding description explicitly names a secure/isolated domain, secure
     enclave, TrustZone secure world, root-of-trust, or attestation (in which
-    case apply the Confidential Computing Host Attacks cap-HIGH rule instead).
+    case apply the Confidential Computing Host Accesses cap-HIGH rule instead).
 
 ______________________________________________________________________
 
@@ -125,7 +125,7 @@ ______________________________________________________________________
    interconnect fabric, memory controller, secure bridge, arbiter) AND the
    impact escapes to the host domain (e.g., host-domain memory R/W) or allows
    cross-domain/cross-master escalation. These remain eligible for CRITICAL.
-   **This rule MUST NOT fire when the `attacker_position` is `"EXTERNAL"` (since
+   **This rule MUST NOT fire when the `access_position` is `"EXTERNAL"` (since
    per the alignment rule in Section 2, the exposure is forced to `EXPOSED`
    (1.0), which precludes this cap).**
 
@@ -148,17 +148,17 @@ ______________________________________________________________________
    Shell Access rule).
 
 6. **`non_default_config` (Non-Default Configurations)** Findings that are only
-   exploitable under non-default configurations (e.g., non-default register,
+   triggerable under non-default configurations (e.g., non-default register,
    strap, or parameter settings). Cap at **HIGH (7.9)** to reflect the
    additional configuration barrier.
 
-7. **`confidential_computing_host` (Confidential Computing Host Attacks)** If
-   the `attacker_position` is `HOST_SYSTEM` (the SoC host/firmware acting on an
+7. **`confidential_computing_host` (Confidential Computing Host Accesses)** If
+   the `access_position` is `HOST_SYSTEM` (the SoC host/firmware acting on an
    isolated secure domain — a secure enclave, TrustZone secure world, or
    root-of-trust) in an isolated-domain deployment. Cap at **HIGH (7.9)**
    because while the host has full control of the platform, the isolated secure
    domain is specifically designed to protect against host-level compromise.
-   (If not an isolated-domain deployment, see the Standard Host-to-Guest Attacks
+   (If not an isolated-domain deployment, see the Standard Host-to-Guest Accesses
    rule under LOW).
 
 8. **`trusted_controller_critical_bypass` (Trusted-Controller-Mediated Interface
@@ -175,7 +175,7 @@ ______________________________________________________________________
 
 ### Category C: Force-Cap to MEDIUM (Cap at 5.9 / Maximum MEDIUM Priority)
 
-1. **`local_attack_vector` (Local Attack Vector)** Bugs reachable only from a
+1. **`local_access_vector` (Local Access Vector)** Bugs reachable only from a
    same-domain local agent already inside the block or domain (e.g., an on-die
    privileged agent performing local privilege escalation) without crossing an
    isolation boundary into another domain (no domain escape). (Downgrade to
@@ -219,13 +219,13 @@ ______________________________________________________________________
    debug/test-mode straps, scan-enable, factory bring-up modes). Cap at **MEDIUM
    (5.9)**.
 
-6. **`physical_temporary` (Physical Temporary Access)** If the attack requires
+6. **`physical_temporary` (Physical Temporary Access)** If the access requires
    temporary physical access to the device (e.g., toggling a debug/JTAG jumper,
    brief scan/probe access, evil-maid tampering) without long-term laboratory
    analysis. Cap at **MEDIUM (5.9)**.
 
 7. **`high_privilege_external` (High-Privilege External Access)** Bugs with
-   `attacker_position: "EXTERNAL"` that require `privileges_required: "HIGH"`
+   `access_position: "EXTERNAL"` that require `privileges_required: "HIGH"`
    (e.g., an authenticated JTAG/debug port or a privileged bus master reachable
    through an external interface). Cap at **MEDIUM (5.9)**, unless triggering the
    bug results in escaping the block boundary (into the host domain) or

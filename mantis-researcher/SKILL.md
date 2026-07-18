@@ -153,7 +153,7 @@ Execute the research stage as follows:
   "impact": "Design consequence (e.g., Metastability-induced data corruption, secure register write bypass, FSM deadlock/hang, secret leakage via debug).",
   "severity": "CRITICAL / HIGH / MEDIUM / LOW",
   "privileges_required": "NONE / LOW / HIGH",
-  "attacker_position": "EXTERNAL / INTERNAL_NETWORK / IN_CLUSTER / LOCAL / HOST_SYSTEM / SUPPLY_CHAIN / PHYSICAL_TEMPORARY / PHYSICAL_LONG_TERM",
+  "access_position": "EXTERNAL / INTERNAL_NETWORK / IN_CLUSTER / LOCAL / HOST_SYSTEM / SUPPLY_CHAIN / PHYSICAL_TEMPORARY / PHYSICAL_LONG_TERM",
   "user_interaction": "NONE / REQUIRED",
   "status": "PROVISIONALLY_VALID",
   "code_paths": ["relative/path/module.sv:line_number"],
@@ -172,7 +172,7 @@ Execute the research stage as follows:
 
 For hardware findings, interpret the shared schema fields as follows:
 
--   **`privileges_required`**: the privilege an attacker needs at the entry
+-   **`privileges_required`**: the privilege an untrusted agent needs at the entry
     point. `NONE` = untrusted software in user/normal mode, an off-chip pin, or
     an untrusted bus master with no special rights. `LOW` = an authenticated or
     partially-trusted agent (e.g., non-secure world). `HIGH` = a
