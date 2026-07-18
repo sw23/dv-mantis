@@ -13,11 +13,12 @@ downgrades) used to calculate the final severity and priority of findings.
 ## Core Principle: Marginal Capability
 
 The final severity and priority of a finding are strictly bounded by the
-**marginal capability** gained by the attacker over their prerequisite position.
-If the exploit does not grant the attacker significant new control, access, or
-capabilities beyond what is already inherent to their starting position (or
-already possessed via legitimate means), the finding must be capped or
-downgraded.
+**marginal capability** gained by the untrusted master/agent over its
+prerequisite position on the design's real interfaces. If triggering the bug
+does not grant that agent significant new control, access, or state-corruption
+capability beyond what is already inherent to its starting position (or already
+reachable through the design's legitimate bus/pin/register interfaces), the
+finding must be capped or downgraded.
 
 ______________________________________________________________________
 
@@ -30,39 +31,43 @@ ______________________________________________________________________
     viability.
 
 02. **`unreachable_inputs` (Unreachable / Uncontrolled Inputs)** The finding
-    relies on inputs that are documented as highly unlikely to be
-    user-controlled, and no path from a trust boundary is proven.
+    relies on stimulus that is documented as highly unlikely to be drivable onto
+    the module's inputs, and no path from a real bus/pin interface (a trust
+    boundary) is proven.
 
-03. **`third_party_reachability` (Third-Party / Supply Chain Reachability)**
-    Vulnerabilities in third-party libraries (dependency CVEs) where a reachable
-    path from application input to the vulnerable function has not been actively
-    demonstrated.
+03. **`third_party_reachability` (Third-Party / Supply Chain Reachability)** Bugs
+    in third-party IP blocks (vendor IP with known errata) where a reachable
+    path from a real design input to the buggy logic has not been actively
+    demonstrated in simulation or formal.
 
 04. **`minor_config_hygiene` (Minor Configuration Hygiene)** Minor deviations
-    from best practice (e.g., slightly loose permissions on internal dirs, lack
-    of modern encryption on low-value internal transport) without a clear
-    exploit path.
+    from best practice (e.g., slightly loose default register values, an
+    optional-but-missing guard on a low-value internal bus) without a clear
+    trigger path.
 
 05. **`non_security_critical` (Non-Security Critical Components)** The finding
-    affects a component or data with no security sensitivity (e.g., public info,
-    signatures on non-security payloads, cosmetic outputs).
+    affects a block or state with no functional-correctness or security
+    sensitivity (e.g., debug status registers, cosmetic status/LED outputs,
+    non-functional observability logic).
 
 06. **`vague_code_paths` (Vague Code Paths / Fragile Assumptions)** Relying on
-    unverified assumptions about caller behavior or adjacent system components.
+    unverified assumptions about neighboring block behavior or adjacent RTL that
+    have not been proven along a concrete path.
 
 07. **`unreliable_triggers` (Unreliable/Noisy Triggers)** Triggers that are
-    likely to be ignored in practice or indistinguishable from normal
-    operations.
+    unlikely to occur in practice or indistinguishable from normal operation
+    (e.g., a glitch that requires an input combination that never appears in
+    legal bus traffic).
 
 08. **`prerequisite_shell` (Prerequisite Shell Access / Equivalent Primitives)**
-    The attacker already possesses local shell access on the target container or
-    host with the **same or higher** privilege level than the exploit provides,
-    rendering the gained access redundant under the Principle of Marginal
-    Capability (e.g., exploiting a bug to get a standard user shell when already
-    logged in as a standard user, or exploiting a local buffer overflow to run
-    commands as root when already running as root). This does NOT apply to
-    low-to-high privilege escalation (e.g., standard user to root), which should
-    cap at MEDIUM.
+    The untrusted master already possesses the **same or higher** privilege
+    access to the target block through a legitimate interface than triggering
+    the bug provides, rendering the gained access redundant under the Principle
+    of Marginal Capability (e.g., using a bug to obtain register read/write it
+    can already perform via a legitimate CSR access, or using an FSM glitch to
+    reach a state it can already command from its authoritative bus). This does
+    NOT apply to low-to-high privilege escalation (e.g., a low-privilege agent
+    reaching a higher-privilege domain), which should cap at MEDIUM.
 
 09. **`physical_long_term` (Physical Long-Term / Laboratory Access)** If the
     attack requires long-term physical access to the device or specialized
@@ -71,25 +76,25 @@ ______________________________________________________________________
     barrier and requirement for physical possession.
 
 10. **`trusted_controller_zero_delta` (Trusted-Controller-Mediated Interface -
-    Zero Delta)** If the vulnerable interface is reachable only from a component
+    Zero Delta)** If the vulnerable interface is reachable only from a block
     that holds designed-in authoritative control over the target (e.g.,
-    orchestrator->worker, driver->device firmware, protocol master->slave,
-    hypervisor->guest, management plane->data plane node), and the exploit
-    grants **zero marginal capability** (i.e., the controller could already
-    achieve the identical effect or level of compromise via its standard,
-    legitimate interface), force-downgrade to **LOW (2.0)**. (This generalizes
-    the *Standard Host-to-Guest Attacks* rule below).
+    configuration master->peripheral, debug/config master->block, protocol
+    master->slave, secure controller->power domain, firmware->IP block), and
+    triggering the bug grants **zero marginal capability** (i.e., the controller
+    could already achieve the identical effect via its standard, legitimate
+    interface), force-downgrade to **LOW (2.0)**. (This generalizes the
+    *Standard Host-to-Guest Attacks* rule below).
 
-11. **`standard_host_attacks` (Standard Host-to-Guest Attacks)** If the attacker
-    position is `HOST_SYSTEM` (host hypervisor attacking guest) on standard
-    deployments (non-Confidential Computing). Force-downgrade to **LOW (2.0)**
-    as the host OS/hypervisor already possesses total control over the guest by
-    design, meaning the exploit offers zero marginal capability over the
+11. **`standard_host_attacks` (Standard Host-to-Guest Attacks)** If the
+    `attacker_position` is `HOST_SYSTEM` (the SoC host/firmware acting on a peer
+    block) on standard, non-isolated deployments. Force-downgrade to **LOW
+    (2.0)** as the host already possesses total designed-in control over the
+    peer block, meaning the bug offers zero marginal capability over the
     prerequisite position (equivalent primitives). **Default assumption:** treat
-    as non-Confidential Computing (this rule fires) UNLESS the Threat Model,
-    code path, or finding description explicitly names Confidential Computing,
-    guest enclaves, TEE, SEV, TDX, SGX, or attestation (in which case apply the
-    CC Host Attacks cap-HIGH rule instead).
+    as non-isolated (this rule fires) UNLESS the Threat Model, RTL path, or
+    finding description explicitly names a secure/isolated domain, secure
+    enclave, TrustZone secure world, root-of-trust, or attestation (in which
+    case apply the Confidential Computing Host Attacks cap-HIGH rule instead).
 
 ______________________________________________________________________
 
@@ -99,121 +104,136 @@ ______________________________________________________________________
    empirically reproduced (`repro_status: "statically_confirmed"`). Cap
    `likelihood_score` at **3**, apply **0.8** multiplier to Hazard, and MUST NOT
    be CRITICAL. *Exception:* If the finding details (description, history, or
-   reproduction output) include a valid external stack trace, sanitizer trace
-   (e.g. ASan, UBSan, MSan), crash log, or core dump proving the vulnerability
-   was triggered in execution (e.g., in a prior run or by external tools), treat
-   it as empirically reproduced (Likelihood 5) and do not apply this static cap.
+   reproduction output) include a valid simulation waveform/log, an assertion
+   (SVA) failure trace, a formal counterexample (CEX), or an X-propagation
+   report proving the bug was actually triggered in execution (e.g., in a prior
+   simulation run or by an external verification tool), treat it as empirically
+   reproduced (Likelihood 5) and do not apply this static cap.
 
-2. **`strict_xss` (Strict XSS Caps)** All XSS vulnerabilities. Default to MEDIUM
-   or LOW; cap at HIGH (7.9) only for stored XSS on critical admin pages with
-   zero-click execution for the admin.
+2. **`strict_xss` (Strict XSS Caps)** A transient, easily-contained functional
+   glitch class (e.g., a single-cycle spurious output or a benign X-glitch that
+   is normally masked or does not reach a live output). Default to MEDIUM or
+   LOW; cap at HIGH (7.9) only when the glitch is latched into a critical
+   control register on a security- or safety-critical block with no masking or
+   downstream correction.
 
 3. **`internal_nested` (Internal / Nested Components)** Any finding with a
-   Network/Trust Exposure multiplier less than 1.0 (i.e., Internal Component or
+   Network/Trust Exposure multiplier less than 1.0 (i.e., an Internal Block or
    Privileged Zone). If the calculated score lands in the CRITICAL range, cap
    the score at **7.9** and downgrade the priority to HIGH. *Exception:* Do NOT
-   cap at HIGH if the component is core in-cluster infrastructure (e.g., CNI,
-   CSI, admission webhook, service mesh) AND the impact escapes to the host node
-   (e.g., node-root file R/W) or allows cross-tenant escalation. These remain
-   eligible for CRITICAL. **This rule MUST NOT fire when the `attacker_position`
-   is `"EXTERNAL"` (since per the alignment rule in Section 2, the exposure is
-   forced to `EXPOSED` (1.0), which precludes this cap).**
+   cap at HIGH if the block is core interconnect/infrastructure IP (e.g.,
+   interconnect fabric, memory controller, secure bridge, arbiter) AND the
+   impact escapes to the host domain (e.g., host-domain memory R/W) or allows
+   cross-domain/cross-master escalation. These remain eligible for CRITICAL.
+   **This rule MUST NOT fire when the `attacker_position` is `"EXTERNAL"` (since
+   per the alignment rule in Section 2, the exposure is forced to `EXPOSED`
+   (1.0), which precludes this cap).**
 
-4. **`probabilistic_llm` (Probabilistic LLM Vectors)** Attacks relying on
-   probabilistic LLM behavior (e.g., prompt injection, jailbreaking) to trigger
-   a vulnerability. Cap at **HIGH** (7.9) and default to **MEDIUM** or **LOW**.
-   *Exception:* If the attacker can query the LLM/system repeatedly without rate
-   limits, concurrency limits, or security blocking/alerting that would impede
-   the attack (allowing them to brute-force and effectively eliminate the
+4. **`probabilistic_llm` (Probabilistic LLM Vectors)** Bugs that depend on
+   non-deterministic or probabilistic timing conditions (e.g., a metastability
+   window or a race that only manifests probabilistically) to trigger. Cap at
+   **HIGH** (7.9) and default to **MEDIUM** or **LOW**. *Exception:* If the
+   untrusted agent can drive the offending input repeatedly without rate,
+   concurrency, or protection limits that would impede the attempt (allowing it
+   to reliably hit the timing/metastability window and effectively eliminate the
    non-determinism), this cap may be lifted.
 
 5. **`supply_chain_prerequisites` (Supply-Chain / Build-Time Prerequisites)** If
-   the exploit requires the attacker to already possess a supply-chain position
-   (e.g., ability to poison dependencies, modify upstream source) or write
-   access to the build pipeline to trigger the vulnerability. Cap at **HIGH
+   triggering the bug requires the agent to already possess a supply-chain
+   position (e.g., the ability to modify upstream RTL source or the IP netlist)
+   or write access to the synthesis/build (bitstream) pipeline. Cap at **HIGH
    (7.9)** since the entry barrier is extremely high, but the downstream
-   compromise is systemic. (Force-downgrade to LOW/2.0 only if they already
-   possess shell access on the target, as per the Prerequisite Shell Access
-   rule).
+   compromise is systemic. (Force-downgrade to LOW/2.0 only if it already
+   possesses equivalent legitimate access to the target, as per the Prerequisite
+   Shell Access rule).
 
 6. **`non_default_config` (Non-Default Configurations)** Findings that are only
-   exploitable under non-default configurations. Cap at **HIGH (7.9)** to
-   reflect the additional configuration barrier.
+   exploitable under non-default configurations (e.g., non-default register,
+   strap, or parameter settings). Cap at **HIGH (7.9)** to reflect the
+   additional configuration barrier.
 
 7. **`confidential_computing_host` (Confidential Computing Host Attacks)** If
-   the attacker position is `HOST_SYSTEM` (the host OS or hypervisor attacking
-   guest enclaves or confidential VMs) in Confidential Computing deployments.
-   Cap at **HIGH (7.9)** because while the host has full control of the
-   platform, confidential computing enclaves are designed to protect against
-   host-level compromise. (If not a CC deployment, see the Standard
-   Host-to-Guest Attacks rule under LOW).
+   the `attacker_position` is `HOST_SYSTEM` (the SoC host/firmware acting on an
+   isolated secure domain — a secure enclave, TrustZone secure world, or
+   root-of-trust) in an isolated-domain deployment. Cap at **HIGH (7.9)**
+   because while the host has full control of the platform, the isolated secure
+   domain is specifically designed to protect against host-level compromise.
+   (If not an isolated-domain deployment, see the Standard Host-to-Guest Attacks
+   rule under LOW).
 
 8. **`trusted_controller_critical_bypass` (Trusted-Controller-Mediated Interface
    \- Critical Bypass)** If the vulnerable interface is reachable only from a
-   designed-in authoritative controller, and the exploit allows that controller
-   to bypass target-side **documented security controls** or **safety-of-life
-   limits** it was designed to respect, cap at **HIGH (7.9)**. (If the exploit
-   allows lateral reach into a different trust domain or achieves persistence
-   surviving controller re-provisioning, do not cap).
+   designed-in authoritative controller, and triggering the bug allows that
+   controller to bypass target-side **documented security controls** (e.g.,
+   lock-bits, write-protect, secure/non-secure isolation) or **safety-of-life
+   limits** (e.g., hard clamp/threshold limits) it was designed to respect, cap
+   at **HIGH (7.9)**. (If the bug allows lateral reach into a different trust
+   domain or achieves persistence surviving controller re-provisioning, do not
+   cap).
 
 ______________________________________________________________________
 
 ### Category C: Force-Cap to MEDIUM (Cap at 5.9 / Maximum MEDIUM Priority)
 
-1. **`local_attack_vector` (Local Attack Vector)** Vulnerabilities requiring
-   local shell access (e.g., local privilege escalation, SUID exploitation)
-   without VM escape. (Downgrade to LOW/2.0 if it only affects a single user's
-   isolated data).
+1. **`local_attack_vector` (Local Attack Vector)** Bugs reachable only from a
+   same-domain local agent already inside the block or domain (e.g., an on-die
+   privileged agent performing local privilege escalation) without crossing an
+   isolation boundary into another domain (no domain escape). (Downgrade to
+   LOW/2.0 if it only affects a single agent's own isolated registers or data).
 
 2. **`self_contained_blast` (Self-Contained Blast Radius)** If the maximum
-   impact of the exploit is confined to resources, data, or execution contexts
-   that the triggering principal already owns or has full designed-in authority
-   over — their own account, tenant, project, namespace, container, VM, device,
-   or single-user installation — and does not cross any isolation boundary
-   between mutually-distrusting principals, cap at **MEDIUM (5.9)**.
+   impact of the bug is confined to registers, memory, or state that the
+   triggering agent already owns or has full designed-in authority over — its
+   own domain, block, register bank, private buffer, or single-agent context —
+   and does not cross any isolation boundary between mutually-distrusting
+   agents, cap at **MEDIUM (5.9)**.
 
-   - The exploit may grant genuinely new capability within that domain (e.g.,
-     API-user -> shell in their own container), but the deployment's core
+   - The bug may grant genuinely new capability within that domain (e.g., a
+     config agent reaching a state within its own block), but the design's core
      isolation guarantees to other parties still hold.
-   - Do **NOT** apply this cap if the exploit:
-     - reaches another principal's resources (cross-tenant, cross-user,
-       cross-account),
-     - touches shared or multi-party infrastructure (shared cache, shared
-       filesystem, operator control plane, co-tenant side-channel),
-     - places the attacker's domain upstream of others (build node, CI runner,
-       package registry, model-serving host — i.e., a supply-chain position), or
-     - persists in a way that survives the principal's own resource lifecycle
-       and could later affect a different principal reusing that slot.
+   - Do **NOT** apply this cap if the bug:
+     - reaches another agent's resources (cross-domain, cross-master,
+       cross-context),
+     - touches shared or multi-party infrastructure (shared cache, shared bus,
+       interconnect fabric, arbiter, co-domain side-channel),
+     - places the agent's domain upstream of others (configuration master, scan
+       chain, build/bitstream flow — i.e., a supply-chain position), or
+     - persists in a way that survives the agent's own resource lifecycle and
+       could later affect a different agent reusing that slot.
 
-3. **`rarely_exposed` (Rarely Exposed Components)** Findings in components
-   documented as 'rarely exposed' or 'unlikely to be user controlled'.
+3. **`rarely_exposed` (Rarely Exposed Components)** Findings in blocks
+   documented as 'rarely exposed' or 'unlikely to be drivable through a real
+   interface'.
 
 4. **`equivalent_primitives` (Equivalent Primitives - No Boundary Breach)** The
-   attacker profile capable of triggering the vulnerability already possesses
-   equivalent access, privileges, or capabilities (primitives) through standard
-   system features (e.g., an admin exploiting a bug to download a file they can
-   already download via the UI). Because this offers low marginal capability
-   over their prerequisite position, cap at **MEDIUM (5.9)** to maintain
-   visibility for defense-in-depth cleanup.
+   agent profile capable of triggering the bug already possesses equivalent
+   access, privileges, or capabilities (primitives) through standard design
+   features (e.g., a configuration master reading a register through a bug that
+   it can already read via a legitimate CSR access). Because this offers low
+   marginal capability over its prerequisite position, cap at **MEDIUM (5.9)**
+   to maintain visibility for defense-in-depth cleanup.
 
 5. **`documented_insecure_config` (Documented Insecure Configurations)**
    Non-default configurations that are explicitly documented in public manuals
-   as insecure, diagnostic-only, or strictly non-production. Cap at **MEDIUM
+   as insecure, diagnostic-only, or strictly non-production (e.g.,
+   debug/test-mode straps, scan-enable, factory bring-up modes). Cap at **MEDIUM
    (5.9)**.
 
 6. **`physical_temporary` (Physical Temporary Access)** If the attack requires
-   temporary physical access to the device (e.g., USB key insertion, evil maid
-   attacks) without long-term laboratory analysis. Cap at **MEDIUM (5.9)**.
+   temporary physical access to the device (e.g., toggling a debug/JTAG jumper,
+   brief scan/probe access, evil-maid tampering) without long-term laboratory
+   analysis. Cap at **MEDIUM (5.9)**.
 
-7. **`high_privilege_external` (High-Privilege External Access)** Exploits with
+7. **`high_privilege_external` (High-Privilege External Access)** Bugs with
    `attacker_position: "EXTERNAL"` that require `privileges_required: "HIGH"`
-   (e.g., admin RCE on public portals). Cap at **MEDIUM (5.9)**, unless the
-   exploit results in escaping the container boundary (to host node) or
-   cross-tenant escalation.
+   (e.g., an authenticated JTAG/debug port or a privileged bus master reachable
+   through an external interface). Cap at **MEDIUM (5.9)**, unless triggering the
+   bug results in escaping the block boundary (into the host domain) or
+   cross-domain escalation.
 
 8. **`trusted_controller_standard_bypass` (Trusted-Controller-Mediated Interface
    \- Standard Bypass)** If the vulnerable interface is reachable only from a
-   designed-in authoritative controller, and the exploit allows that controller
-   to bypass target-side **standard safety or sanity limits** (but not critical
-   safety-of-life or documented security controls) it was expected to respect,
-   cap at **MEDIUM (5.9)**.
+   designed-in authoritative controller, and triggering the bug allows that
+   controller to bypass target-side **standard safety or sanity limits** (but
+   not critical safety-of-life limits or documented security controls) it was
+   expected to respect, cap at **MEDIUM (5.9)**.

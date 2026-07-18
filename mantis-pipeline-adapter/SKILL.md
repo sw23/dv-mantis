@@ -47,9 +47,9 @@ that wraps Mantis Skills.
 
 Follow these guidelines during the consultation:
 
-1. **Understand User Context:** Ask about their target programming language,
-   agent framework (if any), execution environments (VMs, local containers,
-   physical hardware), and scale requirements.
+1. **Understand User Context:** Ask about their HDL(s) and design flow, agent
+   framework (if any), execution environments (simulators, formal tools, FPGA or
+   emulation prototypes), and scale requirements.
 2. **Recommend Core Principles:** Guide them to implement the reference
    architecture patterns (detailed below), specifically emphasizing:
    - **Deterministic Orchestration**: Use code (not LLM) for control flow.
@@ -58,15 +58,15 @@ Follow these guidelines during the consultation:
    - **Token Efficiency**: Use the UUID-based referencing pattern to avoid LLM
      text duplication.
    - **Custom Environment Integration**: Use Custom MCP servers for isolated
-     testing (VMs) or hardware interaction.
+     verification (simulation/formal) or hardware/FPGA interaction.
 3. **Ensure Schema Consistency**: Advise the user to strictly adhere to the
    inter-stage data contracts defined in [schema.json](../schema.json) when
    building their harness.
 4. **Adaptive Design**: Help them draft the code/architecture tailored to their
    specific stack, rather than imposing a rigid template.
-5. **Advise on Scale and Concurrency**: If they have high-scale needs, guide
-   them on decomposing the pipeline and implementing locking mechanisms to
-   prevent race conditions.
+5. **Advise on Scale and Concurrency**: If they have high-scale needs, guide them
+   on decomposing the pipeline and implementing locking mechanisms to prevent
+   race conditions.
 6. **Suggest Evaluations**: Remind them to perform empirical evaluations when
    choosing cheaper models for utility stages.
 
@@ -78,13 +78,12 @@ Use the following guidelines as your technical reference when advising the user.
 
 ### Core Principles
 
-1. **Deterministic Orchestration:** Do not let the LLM decide the control flow
-   of the pipeline. Use a programmatic harness to call skills sequentially or in
+1. **Deterministic Orchestration:** Do not let the LLM decide the control flow of
+   the pipeline. Use a programmatic harness to call skills sequentially or in
    parallel.
-2. **State on Disk / Database:** Use the filesystem
-   (`workspace/findings/*.json`) or a database as the single source of truth.
-   Skills should read from and write to this store. For horizontal scaling,
-   recommend a centralized database.
+2. **State on Disk / Database:** Use the filesystem (`workspace/findings/*.json`)
+   or a database as the single source of truth. Skills should read from and write
+   to this store. For horizontal scaling, recommend a centralized database.
 3. **Deterministic Reporting:** Treat findings as internal state. Minimize the
    use of the LLM to convert JSON findings into Markdown reports for human
    consumption; instead, write deterministic scripts to render the JSON into
@@ -96,9 +95,8 @@ Use the following guidelines as your technical reference when advising the user.
    Do not force the LLM to write one-off scripts (e.g., Python or bash) on the
    fly for routine tasks like appending JSON fields or merging findings, as this
    wastes reasoning tokens. Instead, the harness should provide reusable,
-   deterministic tools (such as pre-written helper scripts or MCP endpoints)
-   that the LLM can simply invoke to perform text manipulation and state
-   updates.
+   deterministic tools (such as pre-written helper scripts or MCP endpoints) that
+   the LLM can simply invoke to perform text manipulation and state updates.
 5. **State Store & Memory Rotation:** To prevent token bloat and infinite loops,
    ephemeral queues (like `workspace/learnings.jsonl`) must be rotated. Upon
    successful completion and verification of the Knowledge Base synthesis stage,
@@ -140,7 +138,7 @@ graph TD
     Harness --> Rep
     Harness --> Ch
     Harness --> Pat
-    Pat -.->|Re-attack Bypass Loop| Rep
+    Pat -.->|Patch Re-verify Loop| Rep
     Harness --> Cal
     Harness --> Ref
 
@@ -175,7 +173,7 @@ findings.
 
 #### A. Researcher Stage
 
-- **Action:** Sweeps the codebase and identifies potential vulnerabilities.
+- **Action:** Sweeps the RTL design and identifies potential design bugs.
 - **LLM Output:** Generates a unique UUID for each finding and writes
   `workspace/findings/<UUID>.json` containing the full details (matching the
   standard schema in [Mantis Researcher](../mantis-researcher/SKILL.md)).
@@ -216,7 +214,7 @@ them back, use the following pattern:
 #### C. Validation & Review Stages (Reviewer, Critic)
 
 - **Harness Action:** For each finding `workspace/findings/<UUID>.json`, pass
-  only the relevant code context and finding description to the LLM.
+  only the relevant RTL context and finding description to the LLM.
 - **LLM Action:** Output *only* a structured verification result (e.g.,
   `{"valid": true, "reason": "..."}`).
 - **Harness Action (Deterministic):** Programmatically update the
@@ -227,19 +225,21 @@ ______________________________________________________________________
 ### 2. Adaptable Reproducers via Custom MCP
 
 When validating findings, the agent may need to interact with diverse
-environments (VMs, physical hardware). Use the **Model Context Protocol (MCP)**
-to expose a clean, restricted API.
+verification environments (simulators, formal tools, FPGA/emulation prototypes).
+Use the **Model Context Protocol (MCP)** to expose a clean, restricted API.
 
 - **Architecture**:
-  `[Reproducer Agent] <--- MCP ---> [Custom MCP Server] <--- API ---> [Target Env]`
+  `[Reproducer Agent] <--- MCP ---> [Custom MCP Server] <--- API ---> [Verification Env]`
 - **Custom Environments**:
-  - *VMs*: Implement tools like `reboot_vm()`, `execute_payload()`.
-  - *Hardware/USB*: Implement tools like `power_cycle_device()` (via smart
-    plug), `send_usb_packet()`.
+  - *Simulation/Formal*: Implement tools like `run_simulation()`,
+    `run_formal_property()`, `get_waveform()`, and (for Chisel)
+    `elaborate_chisel()` / `run_chiseltest()`.
+  - *FPGA/Emulation*: Implement tools like `program_fpga()`, `reset_dut()`,
+    `drive_transaction()` (via a JTAG/AXI bridge).
 - **Integration Note**: If the user's harness uses raw LLM APIs (e.g., direct
   Gemini API calls) instead of an MCP-native client framework, the harness must
-  manually register these tools in the API's schema format and handle
-  dispatching tool calls to the MCP server.
+  manually register these tools in the API's schema format and handle dispatching
+  tool calls to the MCP server.
 
 ______________________________________________________________________
 

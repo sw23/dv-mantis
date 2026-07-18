@@ -1,32 +1,32 @@
 ---
 name: mantis-history
 description: >-
-  Analyzes the repository's version control system (VCS) history to extract past vulnerabilities, security fixes, and vulnerability patterns.
-  Use as an initial pre-processing step to build a historical vulnerabilities database (workspace/historical_learnings.jsonl) that informs subsequent stages about past issues and fixes.
-  Don't use for code reviews, writing test scripts, or patching code.
+  Analyzes the RTL design's version control system (VCS) history to extract past design bugs, RTL fixes, and recurring failure patterns.
+  Use as an initial pre-processing step to build a historical bug database (workspace/historical_learnings.jsonl) that informs subsequent stages about past issues and fixes.
+  Don't use for RTL reviews, writing testbenches, or patching HDL.
 ---
 
 # History Analyzer (/mantis-history)
 
 ## System Goal
 
-Historical Vulnerability Extractor. Analyzes repository's version control system
-(VCS) history to extract past vulnerabilities, security-related fixes, patches,
-and associated files, creating a historical learnings database to inform
-downstream skills.
+Historical Design-Bug Extractor. Analyzes the RTL design's version control
+system (VCS) history to extract past design bugs, functional and security-related
+RTL fixes, and the modules they touched, creating a historical learnings database
+to inform downstream skills.
 
 ## Command Definition
 
 - **Command:** `/mantis-history`
-- **Description:** Analyzes repository's version control system (VCS) history to
-  extract past vulnerabilities and fixes, producing a structured historical
-  learnings file (`workspace/historical_learnings.jsonl`).
+- **Description:** Analyzes the design's version control system (VCS) history to
+  extract past RTL bugs and fixes, producing a structured historical learnings
+  file (`workspace/historical_learnings.jsonl`).
 
 ## Input/Output Contract
 
 - **Reads**:
   - `workspace/.mantis_state.json` (to track current loop pass).
-  - Codebase directory structure and key files (to determine stack).
+  - Design directory structure and key files (to determine stack).
   - VCS history logs (commit messages, titles, diffs).
   - `mantis-summary.md` (optional, if available).
   - Internal history analysis cache (optional, if exists).
@@ -35,28 +35,30 @@ downstream skills.
   - `workspace/historical_learnings.jsonl`.
   - Internal history analysis cache.
 - **Preconditions**:
-  - Target repository and VCS logs must be accessible.
+  - Target design and VCS logs must be accessible.
 - **Idempotency Guarantee**:
   - The extraction script maintains a local cache of analyzed `revision_id`s,
     skipping any already processed commits.
 
 ## Instructions
 
-Your task is to analyze the codebase architecture, determine what constitutes
-security-relevant history, and write a script on-the-fly to extract and document
-historical vulnerabilities from the project's version control system (VCS).
+Your task is to analyze the RTL design architecture, determine what constitutes
+a design-relevant history, and write a script on-the-fly to extract and document
+historical hardware bugs from the project's version control system (VCS).
 
 Execute the history analysis stage as follows:
 
-1. **Phase 1: Analyze Codebase and Define Target History:**
+1. **Phase 1: Analyze the Design and Define Target History:**
 
    - Read existing summaries (e.g. `mantis-summary.md` if available) or quickly
-     inspect the root codebase structure to understand the primary files,
-     programming languages, and core components.
-   - Determine what types of historical security issues (e.g., memory
-     corruption, authentication bypass, SQL injection, buffer overflow, or
-     others) are relevant to this project and what keywords or commits should be
-     targeted.
+     inspect the root design structure to understand the primary modules, HDLs
+     (Verilog, SystemVerilog, VHDL, or Chisel/Scala generators), and core IP
+     blocks.
+   - Determine what types of historical design bugs (e.g., clock-domain crossing
+     (CDC) violations, reset issues, FSM deadlocks, X-propagation, register
+     access-control/lock-bit flaws, arithmetic overflow, bit-width truncation,
+     or others) are relevant to this design and what keywords or commits should
+     be targeted.
 
 2. **Phase 2: Write a History Extraction Script:**
 
@@ -68,21 +70,24 @@ Execute the history analysis stage as follows:
    - **Cost-Efficiency & Scale Optimization:** To ensure the historical analysis
      remains cost-effective and runs efficiently, the script must implement the
      following optimizations:
-     - **Commit Message/Description Pre-filtering:** Before retrieving diffs,
-       the script should dynamically determine relevant keywords for commit
-       message screening. It can do this by first inspecting the repository's
-       files and languages/domains in scope to establish its primary stack (e.g.
-       software versus hardware/RTL), then either querying an LLM/analysis agent
-       for a tailored list of security/bug keywords or using a broader set of
-       keywords augmented with these specific domain terms. Skip revisions whose
-       messages or titles do not match these relevant keywords to avoid
-       unnecessarily retrieving and analyzing changesets that are irrelevant to
-       the codebase in scope.
+     - **Commit Message/Description Pre-filtering:** Before retrieving diffs, the
+       script should dynamically determine relevant keywords for commit message
+       screening. It can do this by first inspecting the design's files and
+       HDLs/domains in scope to establish its primary stack (e.g. RTL/gate-level
+       versus verification/testbench), then either querying an LLM/analysis
+       agent for a tailored list of bug/hazard keywords (e.g. "CDC",
+       "metastability", "glitch", "deadlock", "reset", "overflow", "off-by-one",
+       "X-prop", "sensitivity list", "latch") or using a broader set of keywords
+       augmented with these specific domain terms. Skip revisions whose messages
+       or titles do not match these relevant keywords to avoid unnecessarily
+       retrieving and analyzing changesets that are irrelevant to the design in
+       scope.
      - **Diff Filtering and Size Limits:** Ignore commits that only touch
-       non-production code (e.g., tests, documentation, or configuration files).
-       Skip commits with excessively large diffs (e.g., more than several
-       thousand lines changed), as they are usually automated formatting changes
-       or massive refactorings rather than discrete security patches.
+       non-synthesizable code (e.g., testbenches, documentation, or build
+       scripts) unless they reveal a real RTL bug. Skip commits with excessively
+       large diffs (e.g., more than several thousand lines changed), as they are
+       usually automated formatting changes or massive
+       refactorings/re-parameterizations rather than discrete bug fixes.
      - **Caching Results:** The script should maintain a local cache (e.g., in a
        JSON or SQLite file) mapping `revision_id` to whether it was analyzed. If
        a revision has already been processed and cached, skip it. This makes
@@ -94,19 +99,20 @@ Execute the history analysis stage as follows:
        reducing request overhead and cost.
      - **Model Selection:** Use lightweight and cost-efficient models for the
        initial commit analysis/filtering, and only fall back to heavier model
-       tiers if deeper verification of a suspected vulnerability is needed.
-   - **Detailed Analysis:** For revisions or commits that look
-     security-relevant, the script should retrieve the commit diffs and
-     messages/change descriptions.
+       tiers if deeper verification of a suspected design bug is needed.
+   - **Detailed Analysis:** For revisions or commits that look design-relevant,
+     the script should retrieve the commit diffs and messages/change
+     descriptions.
    - **LLM/Agent Analysis:** The script should make API calls (e.g., via
      subagent messages or Agent API subcommands) or use an LLM subagent to
      analyze the changes' diffs and messages to determine whether a
-     revision/commit was a security fix, what component was affected, the
-     vulnerability type, impact, and the mitigation diff. Make sure it uses
-     batching and caching to minimize API calls.
-   - **Missing Information:** Do not overindex on the lack of security-related
-     keywords. Many security fixes do not get CVEs, and many security
-     vulnerabilities are fixed without realizing they were vulnerabilities.
+     revision/commit was a bug fix, what module was affected, the bug class,
+     impact, and the fix diff. Make sure it uses batching and caching to
+     minimize API calls.
+   - **Missing Information:** Do not overindex on the lack of bug-related
+     keywords. Many RTL bugs are fixed without formal tracking, and many design
+     flaws are corrected without the author realizing they were exploitable or
+     silicon-affecting.
    - **Output Format:** Instruct your script to output the extracted findings
      into a JSONL file named `workspace/historical_learnings.jsonl`, matching
      the following format:
@@ -118,10 +124,10 @@ Execute the history analysis stage as follows:
   "revision_id": "...",
   "title": "...",
   "description": "...",
-  "code_paths": ["file:line_number"],
-  "vuln_type": "...",
+  "code_paths": ["module.sv:line_number"],
+  "bug_type": "...",
   "mitigation_diff": "...",
-  "cve": "...",
+  "tracking_id": "...",
   "history": [
     {
       "stage": "history_extractor",
@@ -141,4 +147,4 @@ Execute the history analysis stage as follows:
      `workspace/historical_learnings.jsonl` has been written successfully and
      contains extracted data.
 
-When complete, notify the user.
+When complete, emit the Harness Result Contract footer as the final part of your response (see schema.json, "Harness Result Contract").

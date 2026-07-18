@@ -1,24 +1,24 @@
 ---
 name: mantis-threat-model
 description: >-
-  Synthesizes trust boundaries, attack surfaces, and attacker profiles into a living threat model.
-  Use as Stage B of the Knowledge Base generation process, reading architecture and entity definitions from the KB.
-  Don't use for analyzing source code or extracting raw learnings from JSONL files.
+  Synthesizes trust boundaries, attack surfaces, and attacker profiles into a living threat model for the RTL design.
+  Use as Stage B of the Knowledge Base generation process, reading architecture and module definitions from the KB.
+  Don't use for analyzing HDL source or extracting raw learnings from JSONL files.
 ---
 
 # Threat Modeler (/mantis-threat-model)
 
 ## System Goal
 
-Security Architect. Synthesizes trust boundaries, attack surfaces, and attacker
-profiles into `THREAT_MODEL.md` based exclusively on the entities and
-architecture defined in the Knowledge Base (KB).
+Hardware Security Architect. Synthesizes trust boundaries, attack surfaces, and
+attacker profiles into `THREAT_MODEL.md` based exclusively on the module
+entities and architecture defined in the Knowledge Base (KB).
 
 ## Command Definition
 
 - **Command:** `/mantis-threat-model`
-- **Description:** Evaluates architectural perimeters, entry points, and trust
-  boundaries to construct the threat model.
+- **Description:** Generates or updates `workspace/kb/THREAT_MODEL.md` using the
+  structural data provided by the `/mantis-architecture` stage.
 
 ## Input/Output Contract
 
@@ -36,24 +36,28 @@ architecture defined in the Knowledge Base (KB).
 ## Instructions
 
 Maintain a high-level Threat Model that explicitly defines *who* the attackers
-are and *where* they can interact with the system, relying on the pre-processed
-entities in the KB.
+are and *where* they can interact with the design, relying on the pre-processed
+module entities in the KB.
 
 Execute the threat modeling process as follows:
 
 1. **Read the Synthesized KB:**
 
-   - Read `workspace/kb/architecture.md` to understand the system's data flows
-     and high-level design.
+   - Read `workspace/kb/architecture.md` to understand the design's dataflow,
+     clock/reset/power domains, and interconnect topology.
    - Read the files inside `workspace/kb/entities/` to understand the individual
-     components and any historical constraints or vulnerability patterns mapped
-     to them by the `/mantis-architecture` stage.
+     modules and any historical invariants or bug patterns mapped to them by the
+     `/mantis-architecture` stage.
 
 2. **Analyze Trust Boundaries:**
 
-   - Evaluate the entities to determine where trust boundaries lie. Where does
-     untrusted data cross into a trusted context? Which components are exposed
-     to external input?
+   - Evaluate the module entities to determine where trust boundaries lie. Where
+     does attacker-influenceable data cross into a trusted context? Which blocks
+     are exposed to untrusted input? Consider boundaries such as:
+     software-writable registers (the SW/HW interface), untrusted bus masters or
+     DMA agents, off-chip pins and interfaces, JTAG/debug and scan (DFT) chains,
+     secure/non-secure world partitions, and inter-IP boundaries in a shared SoC
+     fabric.
 
 3. **Synthesize the Threat Model:**
 
@@ -68,23 +72,29 @@ Execute the threat modeling process as follows:
 
    - **System Overview Summary:** A concise summary derived from
      `architecture.md`.
-   - **Deployment Intent:** Determine if the entire repository is intended for
-     production use, or if it is exclusively a tutorial, sample project, or test
-     suite. State this clearly (e.g., `Intent: SAMPLE_OR_TEST_ONLY` or
-     `Intent: PRODUCTION`).
-   - **Trust Boundaries:** Clear, rigorous definitions of where untrusted inputs
-     meet internal trusted states. Reference the specific entities (e.g.,
-     `[Auth Module](entities/auth_module.md)`).
+   - **Deployment Intent:** Determine if the entire repository is intended to
+     become production silicon/IP, or if it is exclusively a tutorial, reference
+     model, or verification/testbench collection. State this clearly (e.g.,
+     `Intent: SAMPLE_OR_TEST_ONLY` or `Intent: PRODUCTION`).
+   - **Trust Boundaries:** Clear, rigorous definitions of where
+     attacker-influenceable inputs meet internal trusted states. Reference the
+     specific module entities (e.g., `[DMA Engine](entities/dma_engine.md)`).
    - **Threat Actors & Vectors:** Define the profiles of potential attackers
-     (e.g., Unauthenticated Network Attacker, Malicious Local User) and the
-     specific boundaries they can reach.
-   - **High-Risk Assets:** The data, execution privileges, or availability
-     targets an attacker wants to compromise. **For availability targets,
-     classify them into one of these Availability Tiers based on the KB:**
-     - `CRITICAL`: 24/7 immediate operational impact if disrupted.
-     - `STANDARD`: Important operations; short downtime is tolerable.
-     - `LOW_CRITICALITY`: Non-blocking utilities; disruption is a mild
+     (e.g., Untrusted Software on a Core writing memory-mapped registers,
+     Malicious Bus Master / DMA Agent, Physical Attacker with JTAG/scan access,
+     Adjacent Untrusted IP Block) and the specific boundaries they can reach.
+   - **High-Risk Assets:** The secrets (keys, fuses), integrity targets
+     (configuration/lock registers, secure state), or availability targets
+     (liveness of critical datapaths) an attacker wants to compromise. **For
+     availability targets, classify them into one of these Availability Tiers
+     based on the KB:**
+     - `CRITICAL`: A hang, deadlock, or lockup causes immediate, system-wide
+       loss of function with no recovery short of a full reset.
+     - `STANDARD`: Important datapath; a transient stall or recoverable
+       disruption is tolerable.
+     - `LOW_CRITICALITY`: Non-blocking utility logic; disruption is a mild
        annoyance.
 
 Save your final output directly to `workspace/kb/THREAT_MODEL.md`. When
-complete, notify the user.
+complete, emit the Harness Result Contract footer as the final part of your
+response (see schema.json, "Harness Result Contract").

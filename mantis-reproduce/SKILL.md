@@ -1,31 +1,35 @@
 ---
 name: mantis-reproduce
 description: >-
-  Generates and runs crash reproducers to verify security flaws.
-  Use when viable findings exist and you need to write and execute a script or payload to verify the crash.
-  Don't use for code auditing or patching.
+  Generates and runs testbenches, assertions, or formal properties to verify RTL design bugs.
+  Use when viable findings exist and you need to write and execute a simulation or formal proof to confirm the bug.
+  Don't use for RTL auditing or patching.
 ---
 
 # Reproducer (/mantis-reproduce)
 
 ## System Goal
 
-Integration Test Engineer. Designs crash reproducers or inputs and executes them
-inside isolated sandbox environments to empirically verify bugs.
+Verification Engineer. Designs testbenches, SystemVerilog Assertions (SVA), or
+formal properties and executes them inside isolated simulation/formal
+environments to empirically verify design bugs.
 
 ## Command Definition
 
 - **Command:**
-  `/mantis-reproduce [--reattack] [--finding_id=<uuid>] [--force] [--target_root=<path>] [--state_root=<path>]`
-- **Description:** Generates and runs crash reproducers to verify security
-  flaws.
+  `/mantis-reproduce [--reverify] [--finding_id=<uuid>] [--force] [--target_root=<path>] [--state_root=<path>]`
+- **Description:** Generates and runs testbenches, SVA properties, or formal
+  proofs to recreate RTL design bugs. Recreation is **best-effort**:
+  constructing a module-level testbench or formal property often requires
+  design-specific domain knowledge, so a failure to recreate the bug must never
+  block the finding from advancing to later stages.
 - **Parameters:**
-  - `--reattack`: When executing as part of patch verification to isolate
-    re-attack outcomes.
+  - `--reverify`: When executing as part of patch verification to isolate
+    re-verification outcomes.
   - `--finding_id`: The specific finding UUID to reproduce. **Must** be provided
-    and is required when `--reattack` is specified.
+    and is required when `--reverify` is specified.
   - `--force`: Override/bypass eligibility checks for targeted normal runs.
-  - `--target_root`: Path to the root of the target codebase under test
+  - `--target_root`: Path to the root of the target RTL codebase under test
     (defaults to `.`).
   - `--state_root`: Path to the root of the Mantis state directory containing
     `workspace/` (defaults to `.`).
@@ -34,25 +38,25 @@ inside isolated sandbox environments to empirically verify bugs.
 
 - **Reads**:
   - `state_root/workspace/findings/` (viable/conditional findings).
-  - `target_root/` (Repository source files to analyze trigger paths).
+  - `target_root/` (Repository HDL source files to analyze trigger paths).
   - `state_root/workspace/archive/.repro_attempts.json`.
   - `state_root/workspace/.mantis_state.json` (to track current loop pass).
 - **Writes**:
-  - PoC reproduction files (e.g. `poc_[uuid].py` or `crash_[uuid].payload`
-    inside `state_root/workspace/reproducers/`).
+  - PoC reproduction files (e.g. `tb_[uuid].sv` or a formal property file inside
+    `state_root/workspace/reproducers/`).
   - If run normally: updates findings in-place under
     `state_root/workspace/findings/` (sets `"repro_status"`,
     `"repro_file_path"`, `"run_command"`, `"repro_output"`, and appends
     history). Updates status to `"VALID"` if provisionally valid.
-  - If run with `--reattack`: updates findings in-place under
-    `state_root/workspace/findings/` (sets `"reattack_status"`,
-    `"reattack_file_path"`, `"reattack_run_command"`, `"reattack_output"`, and
-    appends history with stage `"reattack"`). Does not modify `"repro_*"` fields
+  - If run with `--reverify`: updates findings in-place under
+    `state_root/workspace/findings/` (sets `"reverify_status"`,
+    `"reverify_file_path"`, `"reverify_run_command"`, `"reverify_output"`, and
+    appends history with stage `"reverify"`). Does not modify `"repro_*"` fields
     or `"status"`.
   - Updates `state_root/workspace/archive/.repro_attempts.json` atomically.
 - **Preconditions**:
   - Findings must exist in `state_root/workspace/findings/`.
-  - Sandbox/container runtime environment must be available.
+  - Simulation/formal runtime environment must be available.
 - **Idempotency Guarantee**:
   - Updates findings in place. Uses
     `state_root/workspace/archive/.repro_attempts.lock` file locking and atomic
@@ -62,8 +66,16 @@ inside isolated sandbox environments to empirically verify bugs.
 
 ## Instructions
 
-Write a Proof-of-Concept Reproduction Script (Repro) or raw input payload file
-that reproduces a confirmed security flaw.
+Write a reproducer — a self-contained module-level testbench, an assertion, or a
+formal property — that demonstrates a confirmed RTL design bug.
+
+This stage is **best-effort and non-blocking**: a module-level testbench (e.g.
+cocotb or chiseltest), an SVA property, or a formal proof usually requires
+design-specific domain knowledge to construct and exercise. Make a genuine
+attempt, but if you cannot build a triggering harness, classify the outcome
+honestly (e.g. `failed_to_reproduce` or `not_attempted`), record what you tried,
+and let the finding proceed. Never halt the pipeline or discard a finding solely
+because it could not be recreated here.
 
 Execute the reproduction stage under these constraints:
 
@@ -72,7 +84,7 @@ Execute the reproduction stage under these constraints:
    - If `--finding_id` is supplied:
      - Load only that finding's file
        (`state_root/workspace/findings/<uuid>.json`). Exit if it does not exist.
-     - If `--reattack` is specified: Enforce the **expected patch workflow
+     - If `--reverify` is specified: Enforce the **expected patch workflow
        state** for the loaded finding:
        - The finding's `"status"` must be `"VALID"` or `"PROVISIONALLY_VALID"`.
        - The finding's `"repro_status"` must be `"reproduced"`.
@@ -80,7 +92,7 @@ Execute the reproduction stage under these constraints:
          `"MITIGATION_PROPOSED"`.
        - Exit with an error if these conditions are not met, explaining the
          invalid state.
-     - If `--reattack` is NOT specified (Targeted Normal Run):
+     - If `--reverify` is NOT specified (Targeted Normal Run):
        - If `--force` is NOT specified, enforce standard eligibility filters:
          - The finding's `"status"` must be `"VALID"` or
            `"PROVISIONALLY_VALID"`.
@@ -90,7 +102,7 @@ Execute the reproduction stage under these constraints:
            invalid state.
        - If `--force` is specified, bypass these eligibility checks.
    - If `--finding_id` is not supplied:
-     - **Constraint:** Exit if `--reattack` is specified (it requires
+     - **Constraint:** Exit if `--reverify` is specified (it requires
        `--finding_id`).
      - Read the JSON files in the `state_root/workspace/findings/` directory.
      - **Strict Eligibility Filter (Normal Runs):** Include only findings where:
@@ -98,101 +110,115 @@ Execute the reproduction stage under these constraints:
        - `"production_viability"` is `"VIABLE"`, `"SAMPLE_OR_TEST"`, or
          `"CONDITIONAL_VIABLE"` (or skip this viability filter if not checking
          viability, but always check status).
-     - If no applicable findings exist, notify the user and exit.
+     - If no applicable findings exist, emit a result footer with
+       `"status": "skipped"` and stop (see schema.json, "Harness Result
+       Contract").
 
 2. **Strict Host Isolation Constraint:**
 
-   - Host command execution is strictly prohibited. Do not run commands directly
-     on your parent host terminal using terminal/shell execution tools.
-   - All reproducer executions must run isolated. Use the containerization or
-     sandbox execution tools provided by your environment. For memory-safety
-     PoCs, restrict network access and file system writes as much as possible.
-     For logic/auth functional tests, you may enable local network services as
-     needed, but never expose the environment to the external internet.
+   - Host command execution outside your controlled tooling is strictly
+     prohibited. Do not run arbitrary commands on your parent host terminal.
+   - All reproducer executions must run in an isolated simulation or formal
+     environment (e.g., a container or scratch working directory). Never point a
+     generated stimulus at real production silicon, a shared lab bench, or
+     networked test equipment without explicit authorization. Simulations and
+     formal runs are self-contained; keep them that way.
 
-3. **Writing and Launching the Reproducer:** Write a self-contained test script
-   (e.g., `poc_[uuid].py` or a C reproducer file in the same directory) or write
-   a raw crash input data payload (e.g., `crash_[uuid].payload`) that triggers
-   the target bug. **All generated PoC/re-attack scripts and payloads MUST be
-   written inside the `state_root/workspace/reproducers/` directory (never in
-   the `target_root` directory).** You must ensure the parent directory
+3. **Writing and Launching the Reproducer:** Write a self-contained testbench
+   (e.g., a SystemVerilog/Verilog `tb_[uuid].sv`, a Verilator C++ harness, a
+   cocotb Python test, or — for a Chisel DUT — a **chiseltest**/ScalaTest test
+   driving Treadle or a Verilator backend), an SVA property bound to the DUT, or
+   a formal property file that triggers the target bug. **All generated
+   reproducer and re-verification harnesses MUST be written inside the
+   `state_root/workspace/reproducers/` directory (never in the `target_root`
+   directory).** You must ensure the parent directory
    `state_root/workspace/reproducers/` exists (e.g. using `mkdir -p`) before
-   writing any files. Analyze the code path and constraints carefully. If your
-   initial reproduction attempt fails, evaluate if the finding details (such as
-   input paths, parameters, or assumptions) are slightly incorrect based on your
-   observations, and adjust the finding details dynamically to attempt a fix. If
-   you cannot find a triggerable path after trying multiple approaches and
-   adjustments, abandon the attempt and mark it as `failed_to_reproduce`.
+   writing any files. Analyze the RTL path and its preconditions carefully. If
+   your initial reproduction attempt fails, evaluate whether the finding details
+   (such as signal names, register sequences, clock/reset relationships, or
+   state assumptions) are slightly incorrect based on your observations, and
+   adjust the finding details dynamically to attempt a fix. If you cannot find a
+   triggerable path after trying multiple approaches and adjustments, abandon the
+   attempt and mark it as `failed_to_reproduce`.
 
-   To run your script or payload, use the execution or containerization tools
-   available in your environment to execute the code safely. Select the most
-   appropriate runtime image and flags for the target. **All compilation and
-   test execution commands MUST be run with current working directory (Cwd) set
-   to `target_root`.** Resolve and use the absolute path of the generated POC
-   file (e.g. using python's `os.path.abspath` on
-   `state_root/workspace/reproducers/poc_[uuid].py`) when generating and storing
-   the `"run_command"` or `"reattack_run_command"`.
-
-   **Execute your reproduction using the appropriate environment:** If the
-   target is firmware, you may write a script to boot it via `qemu`, `unicorn`,
-   or Firmadyne. If it's a binary, you may use dynamic instrumentation or
-   standard execution. Use your best judgment to construct a working harness for
-   the artifact.
+   To run your reproducer, use the simulation or formal tools available in your
+   environment (e.g., Verilator, Icarus Verilog (`iverilog`), Questa/ModelSim
+   (`vsim`), VCS, Xcelium, SymbiYosys/`sby`, or JasperGold; for Chisel, `sbt
+   test` with chiseltest/Treadle). Select the most appropriate tool and flags for
+   the target. **All elaboration, compilation, and simulation/formal commands
+   MUST be run with current working directory (Cwd) set to `target_root`.**
+   Resolve and use the absolute path of the generated reproducer (e.g. using
+   Python's `os.path.abspath` on
+   `state_root/workspace/reproducers/tb_[uuid].sv`) when generating and storing
+   the `"run_command"` or `"reverify_run_command"`. **Match the tool to the
+   artifact:** for a Chisel generator, either write a chiseltest test against the
+   Chisel module directly, or elaborate it to Verilog with `sbt` and drive the
+   generated RTL with a Verilog simulator; if only a gate-level or post-synthesis
+   netlist is available, run a gate-level simulation; if an FPGA/emulation
+   prototype is available, you may exercise it directly. Use your best judgment to
+   construct a working harness for the artifact.
 
    - *Optional Parallel Trajectory Search:* If your environment or agent
      framework supports spawning subagents, you can deploy multiple concurrent
-     agents to attempt writing the reproducer via different logical approaches.
-     If any trajectory succeeds, immediately adopt its payload and discard the
-     others to escape potential "give up" loops.
+     agents to attempt the reproducer via different approaches (e.g., a directed
+     testbench, a constrained-random test, and a formal property). If any
+     trajectory succeeds, immediately adopt its stimulus and discard the others
+     to escape potential "give up" loops.
 
    - **Reproduction Status Classification:**
 
-     - **`reproduced`**: The PoC successfully triggered the vulnerability.
-     - **`failed_to_reproduce`**: The PoC was executed but did not trigger the
-       vulnerability.
-     - **`statically_confirmed`**: Reproduction was impossible due to
-       environmental constraints (e.g., missing hardware emulators, unavailable
-       external services) but the flaw is statically obvious (e.g., hardcoded
-       credentials). This is strongly discouraged and should only be used as a
+     - **`reproduced`**: The testbench/property successfully demonstrated the bug
+       (an assertion fired, an `X` reached a live output, a mismatch vs.
+       reference occurred, or formal returned a counterexample).
+     - **`failed_to_reproduce`**: The reproducer was executed but did not trigger
+       the bug.
+     - **`statically_confirmed`**: Simulation/formal was impossible due to
+       environmental constraints (e.g., missing library/technology cells, an
+       unavailable reference model or vendor tool) but the flaw is statically
+       obvious (e.g., an asynchronous signal sampled with no synchronizer, a
+       hardcoded key). This is strongly discouraged and should only be used as a
        last resort.
      - **`not_attempted`**: The reproduction stage was skipped entirely (e.g.,
-       due to infrastructure setup failure, timeouts, or explicit skip
-       configuration).
+       due to tool setup failure, timeouts, or explicit skip configuration).
 
-4. **Strict Public-API & Internal Invariant Constraints:**
+4. **Strict Interface & Internal-Invariant Constraints:**
 
-   - Your crash reproducer should interact with the codebase through
-     public-facing APIs wherever possible, or strictly respect the library's
-     global execution invariants (such as allocator padding) to avoid generating
-     artificial, non-viable crashes.
-   - Do not declare a finding as "reproduced" if the crash can only be achieved
-     by compiling a direct-call harness that feeds a private/static function a
-     custom-allocated buffer (e.g., `malloc(15)`) that bypasses the library's
-     guaranteed allocator wrappers (e.g., `png_malloc(rowbytes + 48)`).
-   - If a crash cannot be triggered through the public API or with standard
-     allocation padding, classify the finding as `"failed_to_reproduce"` due to
+   - Your reproducer should drive the DUT through its real top-level ports and
+     bus interfaces (e.g., AXI/AHB/APB transactions, legal register writes)
+     wherever possible, or strictly respect the design's global execution
+     invariants, to avoid generating artificial, non-viable failures.
+   - Do not declare a finding as "reproduced" if the failure can only be achieved
+     by using `force`/`release` or direct hierarchical pokes to set an internal
+     signal to a value the real interface can never produce (e.g., forcing a
+     one-hot FSM into an illegal multi-hot encoding that no legal input sequence
+     can reach), or by violating a documented timing/reset contract that the
+     surrounding logic guarantees.
+   - If a bug cannot be triggered through the real interface or under legal
+     operating conditions, classify the finding as `"failed_to_reproduce"` due to
      "Internal Invariant Protection."
 
-5. **Functional & Crash-Aware Validation:** Analyze the output such as stdout,
-   stderr, and exit codes to classify reproduction success depending on the bug
-   class:
+5. **Failure-Aware Validation:** Analyze the simulator/formal output (logs,
+   assertion reports, waveforms, exit status) to classify reproduction success
+   depending on the bug class:
 
-   - **Logic & Authorization Bugs:** A successful reproducer is a functional
-     unit test or script that explicitly demonstrates the logic failure (e.g.,
-     an unauthorized request returns `200 OK`, or a test script successfully
-     bypasses validation and exits with `0`).
-   - **Memory Safety & Binary Crashes:** If the sandbox execution completes with
-     a non-zero exit code but the stderr/stdout displays memory corruption
-     signals, mark the reproduction as `"reproduced"`. Check for:
-     - AddressSanitizer (ASan) error outputs (e.g. `ERROR: AddressSanitizer`).
-     - Segmentation faults (SIGSEGV, exit code `139`).
-     - Abort signals (SIGABRT, exit code `134`).
-     - Crash or core dumps.
+   - **Control / Access / Protocol Bugs:** A successful reproducer is a directed
+     test or property that explicitly demonstrates the failure (e.g., a write to
+     a locked register succeeds, an FSM enters an illegal state, a bus
+     transaction violates the protocol handshake, or a secure asset is read from
+     a non-secure context).
+   - **Datapath / Timing / Structural Failures:** Treat the reproduction as
+     `"reproduced"` if the run exhibits a concrete failure signal. Check for:
+     - SVA assertion failures or `$error`/`$fatal` messages.
+     - `X` (unknown) propagation onto a live output or control signal that a real
+       reset would not clear.
+     - A functional mismatch against a golden/reference model.
+     - A formal counterexample (CEX) trace.
+     - A deadlock/livelock or watchdog timeout with no forward progress.
 
 6. **Token-Optimized File Updates:** To minimize LLM output tokens, **do not
    re-emit or manually rewrite the entire JSON object in your output.** Instead,
-   use in-place editing tools (like a short script in your preferred language,
-   or `jq`) to programmatically append the new fields to the existing
+   use in-place editing tools (like a short script in your preferred language, or
+   `jq`) to programmatically append the new fields to the existing
    `state_root/workspace/findings/<id>.json` file.
 
    Additionally, you must **Update the Reproduction Attempt Cache** to help the
@@ -210,46 +236,46 @@ Execute the reproduction stage under these constraints:
      - Compute `normalized_title` by converting the title to lowercase and
        removing all non-alphanumeric characters.
      - Compute `primary_file_path` by taking the first entry in `code_paths` and
-       stripping any line number suffixes (e.g., converting `src/auth.c:120` to
-       `src/auth.c`).
+       stripping any line number suffixes (e.g., converting
+       `rtl/dma_engine.sv:120` to `rtl/dma_engine.sv`).
    - To prevent race conditions during concurrent executions (including locking
      bypasses caused by atomic file replacement) and protect lockless readers:
      - Use a separate dedicated lock file
-       `state_root/workspace/archive/.repro_attempts.lock` which is never
-       deleted or replaced.
-     - Perform updates atomically using Python's `fcntl.flock` on this lock
-       file:
-     * Open the lock file `state_root/workspace/archive/.repro_attempts.lock`
-       (creating it if missing) and acquire an exclusive lock (`fcntl.flock`
-       with `fcntl.LOCK_EX`) inside a context manager (`with` statement).
-     * Read the current contents of the cache file
-       `state_root/workspace/archive/.repro_attempts.json` (treating it as `{}`
-       if missing or empty).
-     * Increment the integer value for this finding's `stable_key` by 1.
-     * Write the updated JSON to a temporary file in the same directory (e.g.,
-       `state_root/workspace/archive/.repro_attempts.json.tmp`).
-     * Atomically replace the target cache file with the temporary file (e.g.,
-       `os.replace` in Python) to ensure readers never see a truncated or
-       incomplete file.
-     * Close the lock file descriptor to release the lock (automatically handled
-       by exiting the `with` context manager).
+       `state_root/workspace/archive/.repro_attempts.lock` which is never deleted
+       or replaced.
+     - Perform updates atomically using Python's `fcntl.flock` on this lock file:
+       1. Open the lock file
+          `state_root/workspace/archive/.repro_attempts.lock` (creating it if
+          missing) and acquire an exclusive lock (`fcntl.flock` with
+          `fcntl.LOCK_EX`) inside a context manager (`with` statement).
+       1. Read the current contents of the cache file
+          `state_root/workspace/archive/.repro_attempts.json` (treating it as
+          `{}` if missing or empty).
+       1. Increment the integer value for this finding's `stable_key` by 1.
+       1. Write the updated JSON to a temporary file in the same directory (e.g.,
+          `state_root/workspace/archive/.repro_attempts.json.tmp`).
+       1. Atomically replace the target cache file with the temporary file (e.g.,
+          `os.replace` in Python) to ensure readers never see a truncated or
+          incomplete file.
+       1. Close the lock file descriptor to release the lock (automatically
+          handled by exiting the `with` context manager).
 
-   Depending on whether the `--reattack` flag is provided:
+   Depending on whether the `--reverify` flag is provided:
 
-   - **If run normally (no `--reattack` flag):** You must append or update the
+   - **If run normally (no `--reverify` flag):** You must append or update the
      following on the existing object:
 
      - `"repro_status"` (`"reproduced"`, `"statically_confirmed"`,
        `"not_attempted"`, or `"failed_to_reproduce"`).
 
-     - `"repro_file_path"`
+     - `"repro_file_path"` (path to the testbench/assertion/property).
 
-     - `"run_command"`
+     - `"run_command"` (the exact simulator/formal invocation).
 
-     - `"repro_output"`
+     - `"repro_output"` (the relevant log/assertion/CEX output).
 
-     - If reproduction succeeds (`repro_status` is evaluated as `"reproduced"`
-       or `"statically_confirmed"`) and the finding's current `"status"` is
+     - If reproduction succeeds (`repro_status` is evaluated as `"reproduced"` or
+       `"statically_confirmed"`) and the finding's current `"status"` is
        `"PROVISIONALLY_VALID"`, you **must** update `"status"` to `"VALID"`.
 
      - An entry to the `"history"` array:
@@ -264,37 +290,40 @@ Execute the reproduction stage under these constraints:
      }
      ```
 
-   - **If run with `--reattack`:** You must append or update the following on
-     the existing object (do not touch `repro_*` or `status`):
+   - **If run with `--reverify`:** You must append or update the following on the
+     existing object (do not touch `repro_*` or `status`):
 
-     - `"reattack_status"` (`"bypassed_patch"`, `"failed_to_bypass"`).
+     - `"reverify_status"` (`"bug_persists"`, `"bug_resolved"`).
 
-     - `"bypassed_patch"`: The new/modified PoC successfully bypassed the patch
-       and triggered the bug.
+     - `"bug_persists"`: The new/modified reproducer still triggers the bug on
+       the patched RTL (the fix did not fully resolve it).
 
-     - `"failed_to_bypass"`: The PoC was run but failed to bypass the patch.
+     - `"bug_resolved"`: The reproducer was run but the patched RTL no longer
+       triggers the bug.
 
-     - `"reattack_file_path"`
+     - `"reverify_file_path"`
 
-     - `"reattack_run_command"`
+     - `"reverify_run_command"`
 
-     - `"reattack_output"`
+     - `"reverify_output"`
 
      - An entry to the `"history"` array:
 
      ```json
      {
-       "stage": "reattack",
+       "stage": "reverify",
        "action": "reproduced",
-       "details": "Re-attack status evaluated as [bypassed_patch/failed_to_bypass] using command: [reattack_run_command]",
+       "details": "Re-verify status evaluated as [bug_persists/bug_resolved] using command: [reverify_run_command]",
        "pass_number": <current_pass_number>,
        "timestamp": "<current_iso8601_timestamp>"
      }
      ```
 
 7. **Criticism of Reproduction Validity:** To ensure the reproduction is a valid
-   example of reproducing the reported vulnerability, have a subagent with a
-   fresh context window review and criticize the generated PoC. Seek genuine
-   criticism to ensure false reports are never surfaced later.
+   demonstration of the reported design bug, have a subagent with a fresh context
+   window review and criticize the generated reproducer — checking that it drives
+   the DUT legally and does not manufacture the failure via illegal forces or
+   contract violations. Seek genuine criticism to ensure false reports are never
+   surfaced later.
 
-When complete, notify the user.
+When complete, emit the Harness Result Contract footer as the final part of your response (see schema.json, "Harness Result Contract").

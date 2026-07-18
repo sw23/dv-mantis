@@ -12,27 +12,29 @@ ______________________________________________________________________
 
 ## Adaptability & Specialized Domains
 
-While the default skills look for generic security issues, business logic
-problems, and authorization vulnerabilities in typical web/cloud applications,
-they can be adapted for:
+While the default skills look for generic RTL design bugs (clock-domain crossing
+hazards, reset issues, FSM defects, X-propagation, unintended latches, register
+access-control flaws, arithmetic/width bugs, and hardware-security weaknesses) in
+typical SoC and IP designs, they can be adapted for:
 
-- **Hardware / RTL Reviews**: Auditing Register-Transfer Level (RTL) designs
-  (SystemVerilog, VHDL) for security properties or logical bugs.
-- **Infrastructure-as-Code (IaC)**: Analyzing cloud deployment boundaries,
-  Terraform state, or Kubernetes RBAC configurations for privilege escalation
-  paths.
-- **Data & ML Pipelines**: Auditing training data ingress, model serialization
-  formats (e.g., Pickle vulnerabilities), or boundary constraints between data
-  science notebooks and production.
-- **Compiled Binaries & Firmware (Gray-Box Auditing)**: Pointing the suite at
-  compiled release artifacts (using tools like `unblob`, `Ghidra`, `radare2`,
-  `qemu`, or `unicorn`) without providing source code. The intent of this mode
-  is to emulate a third-party security researcher, allowing you to see exactly
-  what vulnerabilities are discoverable by adversaries who only have access to
-  your released binaries.
-- **Custom Test Environments**: Replacing the default container reproduction
-  stage with isolated VMs, physical hardware testbeds (via USB/serial), or
-  custom simulators.
+- **SoC Integration Reviews**: Auditing bus fabrics (AXI, AHB, APB, Wishbone,
+  TileLink), interconnect, and inter-IP trust boundaries for protocol and
+  isolation bugs.
+- **Security IP Reviews**: Auditing key managers, crypto blocks, secure-boot
+  ROMs, fuse/OTP and lock-bit logic, and memory-protection/IOMMU blocks for
+  access-control and isolation weaknesses (see MITRE's Hardware Design CWE view,
+  CWE-1194).
+- **Chisel / Generator Reviews**: Auditing Chisel/Scala hardware generators
+  (e.g., Rocket Chip, BOOM, Chipyard) by elaborating them to Verilog/FIRRTL and
+  reasoning about the generated RTL.
+- **Gate-Level / Netlist (Gray-Box) Auditing**: Pointing the suite at a
+  post-synthesis or gate-level netlist (or an encrypted/third-party IP block)
+  without RTL source, to emulate what an adversary who only has the delivered
+  netlist can discover.
+- **Custom Verification Environments**: Replacing the default simulation
+  reproduction stage with formal property checking, FPGA/emulation prototypes,
+  physical hardware testbeds (via JTAG/serial), or custom
+  directed/constrained-random testbench flows.
 
 ______________________________________________________________________
 
@@ -92,7 +94,7 @@ graph TD
     Cri --> Rep
     Rep --> Cha
     Cha --> Pat
-    Pat -.->|Re-attack Bypass Loop| Rep
+    Pat -.->|Patch Re-verify Loop| Rep
     Pat --> Cal
     Cal --> Ref
     Ref --> Rpt
@@ -135,47 +137,46 @@ graph TD
     findings, and archives the `workspace/findings/` directory between loops.
 02. **`/mantis-history` (History Extractor):** An optional pre-processing step
     that analyzes the repository's version control system (VCS) history to
-    extract past vulnerabilities, security fixes, and vulnerability patterns,
+    extract past design bugs, RTL fixes, and recurring failure patterns,
     saving findings to `workspace/historical_learnings.jsonl`.
 03. **`/mantis-summarize` (Summarizer):** An optional pre-processing step that
     generates a `mantis-summary.md` for each directory, reading past
-    vulnerabilities from `workspace/historical_learnings.jsonl` to enrich
+    design bugs from `workspace/historical_learnings.jsonl` to enrich
     summaries and provide a quick reference map to optimize downstream planning
     and research.
-04. **`/mantis-architecture` (Knowledge Base Architect):** Analyzes the codebase
+04. **`/mantis-architecture` (Knowledge Base Architect):** Analyzes the design
     and clears the `workspace/learnings.jsonl` inbox to synthesize a permanent,
-    interlinked Markdown Knowledge Base (`workspace/kb/`) detailing entities,
-    data flows, and historical vulnerability classes.
-05. **`/mantis-threat-model` (Threat Modeler):** Evaluates the entities and
-    architecture defined in the KB to establish or refine a living
+    interlinked Markdown Knowledge Base (`workspace/kb/`) detailing modules,
+    clock/reset/power domains, dataflows, and historical bug classes.
+05. **`/mantis-threat-model` (Threat Modeler):** Evaluates the module entities
+    and architecture defined in the KB to establish or refine a living
     `workspace/kb/THREAT_MODEL.md`, focusing on trust boundaries and attacker
-    profiles.
-06. **`/mantis-plan` (Strategist):** Scans workspace boundaries and reads the KB
+    profiles (untrusted software, bus masters, JTAG/scan, adjacent IP).
+06. **`/mantis-plan` (Strategist):** Scans design boundaries and reads the KB
     indices to output a targeted review strategy into `workspace/plan.json`,
     injecting specific `kb_references` file paths for context.
 07. **`/mantis-researcher` (Mantis Researcher):** Executes file-by-file triage
-    and deep security flaw reviews, outputting hotspots as individual JSON files
+    and deep RTL bug reviews, outputting hotspots as individual JSON files
     in `workspace/findings/`.
 08. **`/mantis-dedupe` (Deduplicator):** Groups index-based duplicate findings,
     merging records and deleting redundancies within `workspace/findings/`.
 09. **`/mantis-review` (Validator):** Filters out false positives using strict
-    pragmatic constraints, updating the status in
+    pragmatic constraints tuned for RTL noise, updating the status in
     `workspace/findings/<id>.json`.
-10. **`/mantis-critic` (Critic):** Verifies release-build crash reproducibility
-    (ignoring debug/assert checks), updates production viability in
-    `workspace/findings/<id>.json`, and appends false positives/non-viable paths
-    to `workspace/learnings.jsonl`.
-11. **`/mantis-reproduce` (Proof-of-Concept Developer):** Writes
-    Proof-of-Concept Reproduction Scripts (Repros) or raw payloads, executes
-    them in isolated environments such as gVisor or Virtual Machines, and
-    updates reproduction status in `workspace/findings/<id>.json`.
-12. **`/mantis-chain` (Vulnerability Chainer):** Analyzes individual validated
-    findings and knowledge base primitives to identify and construct complex
-    multi-step exploit chains, creating new "Super Findings" in
-    `workspace/findings/`.
-13. **`/mantis-patch` (Patcher):** Generates and applies code fixes, runs
-    post-patch validation tests inside the sandbox, updates patch status in
-    `workspace/findings/<id>.json`, and appends logs to
+10. **`/mantis-critic` (Critic):** Verifies that a bug survives synthesis into
+    real silicon (ignoring simulation-only artifacts and debug/DFT-gated logic),
+    updates silicon viability in `workspace/findings/<id>.json`, and appends
+    false positives/non-viable paths to `workspace/learnings.jsonl`.
+11. **`/mantis-reproduce` (Proof-of-Concept Developer):** Writes testbenches,
+    SystemVerilog Assertions (SVA), or formal properties, executes them in
+    isolated simulation/formal environments, and updates reproduction status in
+    `workspace/findings/<id>.json`.
+12. **`/mantis-chain` (Bug Chainer):** Analyzes individual validated findings
+    and knowledge base primitives to identify and construct complex multi-step
+    bug chains, creating new "Super Findings" in `workspace/findings/`.
+13. **`/mantis-patch` (Patcher):** Generates and applies RTL fixes, runs
+    post-patch verification in the simulation/formal environment, updates patch
+    status in `workspace/findings/<id>.json`, and appends logs to
     `workspace/learnings.jsonl`.
 14. **`/mantis-calibrate` (Risk Calibrator):** Calculates a final numerical
     Mantis Risk Score (1-10) for each finding in the workspace directory based
@@ -185,17 +186,18 @@ graph TD
     agents from the current round, extracting false assumptions, tool failures,
     and successes, and appends these structured insights to the
     `workspace/learnings.jsonl` inbox.
-16. **`/mantis-report` (Reporter):** Generates a human-readable security review
-    packet containing verified/reproduced findings, evidence, risk rationales,
-    and patch information at `workspace/report/review_packet-latest.md` (and
-    archives to `review_packet_pass_<N>.md`).
+16. **`/mantis-report` (Reporter):** Generates a human-readable design-bug
+    review packet containing verified/reproduced findings, evidence, risk
+    rationales, and patch information at
+    `workspace/report/review_packet-latest.md` (and archives to
+    `review_packet_pass_<N>.md`).
 
 ______________________________________________________________________
 
 ## Building Deterministic Pipelines (Production-Grade)
 
 While the `/mantis-meta-agent` provides dynamic steering for exploratory
-security research, we highly recommend wrapping the Mantis Skills in a
+design research, we highly recommend wrapping the Mantis Skills in a
 **deterministic programmatic pipeline** for use in enterprise or production
 settings.
 
@@ -221,9 +223,9 @@ prompt design, and the model class used.
 By treating the individual skills (like `/mantis-researcher`, `/mantis-review`,
 and `/mantis-reproduce`) as microservices that read and write JSON state in the
 `workspace/findings/` directory, you can build a rigid orchestrator that
-provides stronger reliability and security guarantees. Better yet, you should
-use more durable and resilient databases instead of json files on a single
-machine.
+provides absolute reliability and strict isolation guarantees. Better yet, you
+should use more durable and resilient databases instead of json files on a
+single machine.
 
 **Before building your harness, strictly adhere to the inter-stage data
 contracts defined in [schema.json](schema.json).**
@@ -250,14 +252,15 @@ environments (via MCP), see the
   it is reasonable to demonstrate the overall workflow, a more deterministic
   critic stage that the agent cannot bypass by "forgetting" to call the critic
   subagent will likely produce better results.
-- **Mitigates Prompt Injection Risk:** An LLM orchestrating shell commands is
-  susceptible to host-level prompt injection if it ingests malicious code.
-  Moving the orchestration to a hardened deterministic pipeline removes the
-  LLM's control over the host environment.
+- **Mitigates Prompt Injection Risk:** An LLM orchestrating shell/EDA commands
+  is susceptible to host-level prompt injection if it ingests malicious content
+  (e.g., a comment planted in a third-party IP file). Moving the orchestration
+  to a hardened deterministic pipeline removes the LLM's control over the host
+  environment.
 - **Enforces Strict Sandboxing:** Rather than relying on the LLM to remember to
-  use `--network none` when executing a crash reproducer, your deterministic
-  harness can programmatically enforce that untrusted AI-generated payloads are
-  executed exclusively within a locked-down VM, container, or gVisor sandbox.
+  contain a simulation run, your deterministic harness can programmatically
+  enforce that untrusted AI-generated testbenches are executed exclusively
+  within a locked-down VM, container, or gVisor sandbox.
 - **CI/CD Integration:** A deterministic script executing the static analysis
   and deduplication stages is predictable and easily integrated into standard
   automated workflows like GitHub Actions or Jenkins.
@@ -285,72 +288,73 @@ deterministic execution, you can build a pipeline that:
    deterministic runner on what to analyze next.
 3. **Hardcodes the Execution Sandbox:** You can optionally configure the
    deterministic versions of `/mantis-reproduce` and `/mantis-patch` to *only
-   generate* the patch or script file, leaving the actual execution and grading
-   to your harness in a strictly controlled sandbox.
+   generate* the patch or testbench file, leaving the actual simulation/formal
+   execution and grading to your harness in a strictly controlled sandbox.
 
 ______________________________________________________________________
 
-## Exploit Chains and Reproduction Limits
+## Bug Chains and Reproduction Limits
 
-The Mantis pipeline supports identifying complex, multi-step exploit chains (via
+The Mantis pipeline supports identifying complex, multi-step bug chains (via
 `/mantis-chain`), but **it does not attempt to programmatically write or execute
-end-to-end reproduction scripts for these chains**.
+end-to-end reproduction testbenches for these chains**.
 
 - **Constituent Reproduction Only:** The pipeline only reproduces the
   individual, constituent findings.
-- **Static Confirmation:** An exploit chain finding is marked as
+- **Static Confirmation:** A bug chain finding is marked as
   `statically_confirmed` if all its constituent findings have been individually
   confirmed (either reproduced or statically confirmed).
 - **Simplification Decision:** This is an intentional design decision to limit
-  complexity, as automated multi-stage exploit orchestration is highly
+  complexity, as automated multi-stage bug-chain orchestration is highly
   environment-dependent. Users wishing to verify end-to-end chains must write
   custom orchestrators or manually verify the combined flow.
 
 ______________________________________________________________________
 
-## Patch Verification and Re-attack Constraints
+## Patch Verification and Re-verify Constraints
 
 The `schema.json` contract defines validation rules for findings that have been
-patched. While `/mantis-patch` is designed to verify patches using a re-attack
-step (confirming `reattack_status`), the schema supports several distinct
+patched. While `/mantis-patch` is designed to verify patches using a re-verify
+step (confirming `reverify_status`), the schema supports several distinct
 verification outcome statuses:
 
 - **`VERIFIED_SECURE`**: Completed verification, meaning the post-patch run
-  passed AND a successful variant re-attack check was executed to confirm the
-  fix cannot be bypassed.
-- **`MITIGATION_PROPOSED`**: Set for binary targets where code patching is not
+  passed AND a successful variant re-verification check was executed to confirm
+  the fix cannot be bypassed.
+- **`MITIGATION_PROPOSED`**: Set for gray-box targets (e.g., a gate-level
+  netlist or an encrypted third-party IP block) where RTL patching is not
   possible but a functional or architectural mitigation is proposed in
-  `patch_diff`. These may bypass code modification and re-attack checks.
+  `patch_diff`. These may bypass RTL modification and re-verification checks.
 - **`VERIFICATION_INCOMPLETE`**: Set when the initial post-patch verification
-  run passed but the subsequent re-attack checks were interrupted or failed due
-  to environment timeouts, infrastructure errors, or sandbox limits.
+  run passed but the subsequent re-verification checks were interrupted or
+  failed due to environment timeouts, infrastructure errors, or sandbox limits.
 
-Re-attack fields (`reattack_status`, etc.) are strictly required only when
+Re-verify fields (`reverify_status`, etc.) are strictly required only when
 `patch_status` is `VERIFIED_SECURE`. This is an intentional design decision to
-support binary-only targets and verification fallbacks.
+support gray-box targets and verification fallbacks.
 
 ______________________________________________________________________
 
 ## The Reality of Non-Determinism
 
-A critical concept to understand when using AI for security research is
+A critical concept to understand when using AI for design research is
 **Non-Determinism**.
 
 - **Coverage is not an absolute guarantee:** Even though Stage 2
   (`/mantis-plan`) attempts to use programmatic shell scripts to map your entire
-  codebase, the agent running those scripts is fundamentally non-deterministic.
-  It might occasionally fail to run the script correctly, hallucinate
-  parameters, or skip steps.
+  design, the agent running those scripts is fundamentally non-deterministic. It
+  might occasionally fail to run the script correctly, hallucinate parameters,
+  or skip steps.
 - **Trajectory/Conversation analysis:** One way to mitigate the lack of
   determinism is to programmatically review all the tool calls made by the
   agents to see what they've done. This can be used to calculate coverage and
   efficiency metrics, although what those numbers mean exactly we will leave to
   your imagination.
 - **Reasoning shifts across loops:** Because the LLM's analysis is
-  non-deterministic, it may miss a subtle business logic flaw or authorization
-  bypass on Pass 1 but identify it clearly on Pass 5 as its internal "attention"
-  shifts or as it gains context from other findings. This is why we generally
-  recommend running this scanning pipeline many times.
+  non-deterministic, it may miss a subtle CDC hazard or access-control bypass on
+  Pass 1 but identify it clearly on Pass 5 as its internal "attention" shifts or
+  as it gains context from other findings. This is why we generally recommend
+  running this scanning pipeline many times.
 - **Diminishing Returns:** You might expect the pipeline to eventually "finish"
   and stop reporting bugs. In reality, the discovery of findings often does not
   stop completely; rather, the *quality and severity* of the findings will
@@ -363,14 +367,14 @@ experiment with the suite, review the Risk Calibrator scores on the findings,
 and determine for themselves when the quality of findings has dropped enough to
 pause the loop.** In the long term you will also have to determine how often to
 rescan, such as when new models with greater capabilities are made available or
-when a codebase has received sufficiently large changes to warrant a complete
+when a design has received sufficiently large changes to warrant a complete
 rescan instead of just an analysis of a given diff or changelist.
 
 ______________________________________________________________________
 
 ## Meta-Agent Orchestration Pattern
 
-For a truly autonomous and persistent security operation, you can employ the
+For a truly autonomous and persistent design-review operation, you can employ the
 **Meta-Agent Orchestration** pattern by invoking the `/mantis-meta-agent` skill.
 In this setup, a high-level "Meta-Agent" (a long-lived Gemini or Antigravity CLI
 session) is responsible for driving the entire reviewing pipeline.
@@ -381,22 +385,22 @@ session) is responsible for driving the entire reviewing pipeline.
   using CLI subagent delegation.
 - **Persistence:** It operates in a single, long-lived conversation that spans
   days or weeks, ensuring that the review continues working towards the goal of
-  security flaw discovery, patching, and reporting even while you are in
-  meetings, away for the evening, or over the weekend.
+  design-bug discovery, patching, and reporting even while you are in meetings,
+  away for the evening, or over the weekend.
 - **Supervision:** It keeps an eye on the task, handles minor environmental
   hiccups, reads logs, and ensures the pipeline remains operational.
 - **Interactive Steering:** A major advantage of this pattern is that you can
   chat with the Meta-Agent while subagents are working. You can ask for status
   updates, collaboratively debug environment issues, or provide high-level
-  strategic guidance (e.g., "Deep dive on the image parser") to influence the
-  swarm's focus in real-time or in the next loop.
+  strategic guidance (e.g., "Deep dive on the CDC boundaries in the DMA engine")
+  to influence the swarm's focus in real-time or in the next loop.
 - **Security Boundaries:** While you can run the Meta-Agent with auto-approve
   flags (`--dangerously-skip-permissions`), you must strictly confine it within
   the hardened security boundaries previously described (VPC-SC, no external
   internet, and restricted IAM roles).
 
 This pattern transforms the suite from a set of disjointed tools into a
-continuous, self-driving security research operation.
+continuous, self-driving design-review operation.
 
 ______________________________________________________________________
 
@@ -415,15 +419,15 @@ need to use the heaviest, most advanced frontier models for every stage:
   pipeline down by over-allocating intelligence here. Consider allowing the
   planner to specify a difficulty level for a given research task to allow
   targeting simpler questions at faster models, while allowing for some more
-  complex vulnerability discovery tasks to benefit from the most advanced
-  frontier models.
+  complex design-bug discovery tasks to benefit from the most advanced frontier
+  models.
 - **Tier 2 (Deep Reasoning):** Save your most powerful, heavy-reasoning flagship
   models for the highly complex stages that demand deep context and zero-shot
-  problem solving: `/mantis-reproduce` (writing functional crash reproducers)
-  and `/mantis-patch` (writing side-effect-free codebase fixes).
-- **Tip:** For very large repositories, configure your plan `/mantis-plan` to
-  focus on specific high-risk subfolders (e.g. `src/crypto/` or `api/`) to keep
-  the scan focused and efficient.
+  problem solving: `/mantis-reproduce` (writing functional testbenches and
+  formal properties) and `/mantis-patch` (writing side-effect-free RTL fixes).
+- **Tip:** For very large designs, configure your plan `/mantis-plan` to focus
+  on specific high-risk blocks (e.g. `rtl/crypto/` or `rtl/dma/`) to keep the
+  scan focused and efficient.
 
 Try different tiers of models in different parts of your pipeline to see what
 works well and what does not.
@@ -432,26 +436,26 @@ ______________________________________________________________________
 
 ## Understanding False Positives (The "Negative Filter" Rule)
 
-AI-based vulnerability scanning, like SAST of old, can lead to a frustrating
-number of false positives. Unlike SAST of old, there are ways to tune this
-without creating highly complex rules. Try things and see what works and what
-doesn't, then adapt.
+AI-based design-bug scanning, like lint and CDC tools of old, can lead to a
+frustrating number of false positives. Unlike rule-based tools there are ways to
+tune this without creating highly complex waivers. Try things and see what works
+and what doesn't, then adapt.
 
 - **What to expect:** AI scanners can be overly enthusiastic. To address this,
   the `/mantis-review` stage runs a strict validator applying negative rules.
   (These rules are by no means set in stone but must be adapted, reframed, or
   even split out into a different stage of their own if it suits your use case.)
 - **Low/hardening risks are NOT false positives:** Effective risk calibration is
-  critical as a first stage of triage of vulnerabilities. Take care when tuning
-  your pipeline to ensure the difference between a false positive and something
-  that is currently below the risk tolerance bar does not negatively impact your
-  ability to detect vulnerabilities.
+  critical as a first stage of triage of design bugs. Take care when tuning your
+  pipeline to ensure the difference between a false positive and something that
+  is currently below the risk tolerance bar does not negatively impact your
+  ability to detect real design bugs.
 - **Pragmatism:** Try things and see what works and what doesn't, then adapt.
 - **Don't open the firehose all at once:** It is far more efficient to run a
   small scan, triage a few items, and use this to feed back into constructing
-  your scanning pipeline. Running a scan over everything and reporting all the
-  potential vulnerabilities might work, but in our experience is unlikely to be
-  the most successful way to adopt this new technology.
+  your scanning pipeline. Running a scan over an entire SoC and reporting all the
+  potential bugs might work, but in our experience is unlikely to be the most
+  successful way to adopt this new technology.
 
 ______________________________________________________________________
 
@@ -477,23 +481,25 @@ three tiers:
    - **What it is:** Evaluating a single skill (e.g., `/mantis-patch`) in a
      vacuum, entirely decoupled from the rest of the pipeline.
    - **The Setup:** Feed a static, hardcoded input (a mocked `findings.json` and
-     a target file) to a single skill and observe its output.
+     a target RTL file) to a single skill and observe its output.
    - **What to measure:**
      - **Format:** Did it output the expected JSON schema or valid diff?
      - **Tool Use:** Did it attempt to call the correct tools (`run_command` vs
        `view_file`)?
      - **LLM-as-a-Judge:** Use a cheaper, faster model to grade the qualitative
-       output with a strict rubric (e.g., "Did the patch address the SQL
-       injection? Yes/No.").
+       output with a strict rubric (e.g., "Did the patch add a correct two-flop
+       synchronizer on the CDC path? Yes/No.").
 3. **Tier 3: The "Golden Dataset" End-to-End Eval**
    - **What it is:** A full run of the entire pipeline. Only run this when doing
      a major release or swapping base model classes (e.g., upgrading to a newer
      flagship model).
    - **The Setup:** Curate a tiny dataset of 3-5 real-world, representative
-     vulnerable repositories.
-   - **What to measure:** Binary outcomes. Did the final test suite pass? Did
-     `/mantis-reproduce` generate a working PoC? You could also perform human
-     evaluation to see if there were novel vulnerabilities discovered.
+     buggy RTL designs (e.g., designs with known CDC, FSM, or access-control
+     bugs).
+   - **What to measure:** Binary outcomes. Did the final regression pass? Did
+     `/mantis-reproduce` generate a working testbench/property that triggers the
+     bug? You could also perform human evaluation to see if there were novel
+     design bugs discovered.
 
 ### Measuring the "Unmeasurable"
 
@@ -502,11 +508,12 @@ is difficult to define. Instead, track these proxy metrics to gauge skill
 degradation:
 
 - **Tool Error Rate:** Count how many times the agent's tool calls fail (e.g.,
-  bad bash syntax, invalid file paths). A spike in tool errors after a prompt
-  change indicates the skill's instruction set has degraded or that the prompts
-  might need to be adapted to a new model or coding agent harness.
+  bad bash syntax, invalid file paths, un-elaboratable testbenches). A spike in
+  tool errors after a prompt change indicates the skill's instruction set has
+  degraded or that the prompts might need to be adapted to a new model or coding
+  agent harness.
 - **Trajectory Efficiency (Turns/Tokens):** If `/mantis-reproduce` used to write
-  a PoC in 5 turns, and after a prompt tweak it takes 150 turns or loops
+  a testbench in 5 turns, and after a prompt tweak it takes 150 turns or loops
   repeatedly, that is a measurable regression in efficiency.
 - **The "Give Up" Rate:** How often does the agent explicitly output phrases
   like "I cannot determine", "I am stuck", or enter an infinite loop before
@@ -540,10 +547,10 @@ token investment:
 - **Evaluate Parallel Trajectories:** If you implement parallel trajectory
   search (e.g., spawning multiple `Researchers` or `Patchers`), test different
   numbers of concurrent agents (e.g., 2, 3, or 5). If running parallel
-  researchers always results in them finding the exact same vulnerabilities,
-  then the parallelization is not yielding unique value and is just burning
-  tokens. Conversely, if parallel patchers consistently produce a much cleaner,
-  more idiomatic fix than a single agent, the compute cost can be justified.
+  researchers always results in them finding the exact same design bugs, then
+  the parallelization is not yielding unique value and is just burning tokens.
+  Conversely, if parallel patchers consistently produce a much cleaner, more
+  idiomatic fix than a single agent, the compute cost can be justified.
 
 ______________________________________________________________________
 
@@ -607,9 +614,10 @@ configure your environment as follows:
 
 - **Network Isolation:** Provision the GCE VM with **no external internet
   access**, or at least use a secure web proxy with a trusted allowlist and good
-  rate limiting and egress controls.
+  rate limiting and egress controls. This is especially important when the
+  design under review includes proprietary or third-party IP.
 - **VPC Service Controls (VPC-SC):** Place the VM inside a VPC-SC perimeter.
-  This is an important defense against data exfiltration if an agent is
+  This is an important defense against exfiltration of design IP if an agent is
   compromised.
 - **Least-Privilege Service Account:** Attach a dedicated IAM Service Account to
   the VM with strictly limited roles. Do *not* use broad roles like
@@ -623,11 +631,11 @@ configure your environment as follows:
     `roles/storage.objectViewer` to a specific GCS bucket. **Crucially, do not
     grant delete permissions (`storage.objects.delete`).** Also consider other
     append-only storage mechanisms.
-  - **GCS Versioning:** Enable Object Versioning on the GCS bucket. This
-    provides a mechanism so that even if the AI or an untrusted crash reproducer
-    payload overwrites a file (like `workspace/learnings.jsonl`), previous
-    states are preserved as non-current versions, preventing the AI from
-    permanently deleting the history.
+  - **GCS Versioning:** Enable Object Versioning on the GCS bucket. This provides
+    a mechanism so that even if the AI or an untrusted testbench payload
+    overwrites a file (like `workspace/learnings.jsonl`), previous states are
+    preserved as non-current versions, preventing the AI from permanently
+    deleting the history.
 
 ### 2. Bypassing Interactive Prompts (Unattended Mode)
 
@@ -637,18 +645,18 @@ executing system commands. To run the pipeline entirely unattended, you must
 pass the appropriate auto-approve flag when starting the CLI, such as
 `--dangerously-skip-permissions` or `--yolo`.
 
-### 3. Automated Security Flaw Alerting (Cloud Pub/Sub)
+### 3. Automated Design-Bug Alerting (Cloud Pub/Sub)
 
 When running unattended, you might desire an isolated way to be notified when
-the pipeline discovers a high-confidence security flaw. There are numerous ways
+the pipeline discovers a high-confidence design bug. There are numerous ways
 to do this, including connecting the pipeline to **Google Cloud Pub/Sub**.
 
-1. **Setup:** Create a Pub/Sub topic (e.g., `mantis-verified-vulns`) and grant
+1. **Setup:** Create a Pub/Sub topic (e.g., `mantis-verified-bugs`) and grant
    your GCE VM's Service Account the `roles/pubsub.publisher` role.
 2. **Hooking it up:** The `/mantis-meta-agent` skill can be instructed to
    trigger notifications natively. You can instruct the meta-agent to run
-   `gcloud pubsub topics publish mantis-verified-vulns --message="$(cat workspace/findings/<id>.json)"`
-   whenever a security flaw is successfully reproduced.
+   `gcloud pubsub topics publish mantis-verified-bugs --message="$(cat workspace/findings/<id>.json)"`
+   whenever a design bug is successfully reproduced.
 3. **Routing:** Subscribe a Google Cloud Function or Cloud Run service to that
    Pub/Sub topic to route the alert payload directly into your team's chat,
    issue tracker, or paging system. This cleanly decouples the isolated scanning
