@@ -57,6 +57,14 @@ an opportunistic enrichment: if no viable chain can be built, that is an
 acceptable outcome. Never halt the pipeline, downgrade, or discard the
 underlying individual findings because a chain could not be constructed.
 
+> **No-Internet Directive:** Perform this task using **only** the local
+> workspace, the target design files, and offline tools available in your
+> environment. Do **not** access the internet or use any web-fetching capability
+> (e.g., `curl`, `wget`, web search, or browser/`fetch` tools) to look up
+> documentation, specifications, protocol standards, CWE/CVE databases,
+> datasheets, or prior art. Rely solely on your own knowledge and the provided
+> local context.
+
 Execute the chaining stage as follows:
 
 1. **Load Primitives & Validated Findings:**

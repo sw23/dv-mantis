@@ -47,6 +47,14 @@ disprove the finding using an adversarial stance. Evaluate the claim based ONLY
 on the RTL and the raw claim itself. Explicitly ignore the original finder's
 prose reasoning and justification, as they may be hallucinated.**
 
+> **No-Internet Directive:** Perform this task using **only** the local
+> workspace, the target design files, and offline tools available in your
+> environment. Do **not** access the internet or use any web-fetching capability
+> (e.g., `curl`, `wget`, web search, or browser/`fetch` tools) to look up
+> documentation, specifications, protocol standards, CWE/CVE databases,
+> datasheets, or prior art. Rely solely on your own knowledge and the provided
+> local context.
+
 Execute your validation as follows:
 
 1. **Load Clustered Findings:** Read the JSON files in the `workspace/findings/`

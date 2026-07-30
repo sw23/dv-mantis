@@ -46,6 +46,14 @@ into a canonical, interlinked Markdown Knowledge Base (`workspace/kb/`).
 Analyze the RTL design and pending learnings to construct a permanent,
 Markdown-based memory for future agents.
 
+> **No-Internet Directive:** Perform this task using **only** the local
+> workspace, the target design files, and offline tools available in your
+> environment. Do **not** access the internet or use any web-fetching capability
+> (e.g., `curl`, `wget`, web search, or browser/`fetch` tools) to look up
+> documentation, specifications, protocol standards, CWE/CVE databases,
+> datasheets, or prior art. Rely solely on your own knowledge and the provided
+> local context.
+
 Execute the architecture stage as follows:
 
 1. **Read the Inbox (`workspace/learnings.jsonl` and

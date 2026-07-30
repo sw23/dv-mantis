@@ -46,6 +46,14 @@ produce a final risk score (1-10).
 Convert the raw design findings and their empirical results (reproduction/patch)
 into a prioritized, actionable risk report.
 
+> **No-Internet Directive:** Perform this task using **only** the local
+> workspace, the target design files, and offline tools available in your
+> environment. Do **not** access the internet or use any web-fetching capability
+> (e.g., `curl`, `wget`, web search, or browser/`fetch` tools) to look up
+> documentation, specifications, protocol standards, CWE/CVE databases,
+> datasheets, or prior art. Rely solely on your own knowledge and the provided
+> local context.
+
 Execute the calibration as follows:
 
 1. **Load Full Pipeline State:**

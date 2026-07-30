@@ -51,6 +51,14 @@ appending logs to long-term memory.
 Fix successfully reproduced design bugs without breaking correct RTL behavior or
 timing intent.
 
+> **No-Internet Directive:** Perform this task using **only** the local
+> workspace, the target design files, and offline tools available in your
+> environment. Do **not** access the internet or use any web-fetching capability
+> (e.g., `curl`, `wget`, web search, or browser/`fetch` tools) to look up
+> documentation, specifications, protocol standards, CWE/CVE databases,
+> datasheets, or prior art. Rely solely on your own knowledge and the provided
+> local context.
+
 Execute the patching and verification stage as follows:
 
 1. **Load Findings to Patch:** Read the JSON files in the `workspace/findings/`

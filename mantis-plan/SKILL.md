@@ -50,6 +50,14 @@ Analyze the design structure and create a detailed RTL review plan that avoids
 duplication of prior efforts while digging deep into complex cross-module paths,
 clock/reset domain boundaries, and un-scanned design areas.
 
+> **No-Internet Directive:** Perform this task using **only** the local
+> workspace, the target design files, and offline tools available in your
+> environment. Do **not** access the internet or use any web-fetching capability
+> (e.g., `curl`, `wget`, web search, or browser/`fetch` tools) to look up
+> documentation, specifications, protocol standards, CWE/CVE databases,
+> datasheets, or prior art. Rely solely on your own knowledge and the provided
+> local context.
+
 > **Target Agnosticism Directive:** The target you are evaluating may be RTL
 > source (Verilog, SystemVerilog, VHDL), a Chisel/Scala generator (`.scala` that
 > elaborates to Verilog/FIRRTL, common in open-source designs), a

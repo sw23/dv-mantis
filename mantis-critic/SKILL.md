@@ -47,6 +47,14 @@ bugs in synthesized, production silicon. **Adopt a highly skeptical, adversarial
 stance. Do not trust the reasoning of previous stages. Re-verify the RTL path
 independently to definitively prove or disprove silicon viability.**
 
+> **No-Internet Directive:** Perform this task using **only** the local
+> workspace, the target design files, and offline tools available in your
+> environment. Do **not** access the internet or use any web-fetching capability
+> (e.g., `curl`, `wget`, web search, or browser/`fetch` tools) to look up
+> documentation, specifications, protocol standards, CWE/CVE databases,
+> datasheets, or prior art. Rely solely on your own knowledge and the provided
+> local context.
+
 Execute the critic evaluation as follows:
 
 1. **Load Findings:** Read the JSON files in the `workspace/findings/`

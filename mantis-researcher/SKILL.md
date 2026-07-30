@@ -43,6 +43,14 @@ violations.
 Perform a thorough correctness, robustness, and hardware-security review of the
 targeted RTL design.
 
+> **No-Internet Directive:** Perform this task using **only** the local
+> workspace, the target design files, and offline tools available in your
+> environment. Do **not** access the internet or use any web-fetching capability
+> (e.g., `curl`, `wget`, web search, or browser/`fetch` tools) to look up
+> documentation, specifications, protocol standards, CWE/CVE databases,
+> datasheets, or prior art. Rely solely on your own knowledge and the provided
+> local context.
+
 Execute the research stage as follows:
 
 1. **Load Reviewing Plan & Context:** Read the active pass number from

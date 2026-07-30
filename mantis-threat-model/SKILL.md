@@ -39,6 +39,14 @@ Maintain a high-level Threat Model that explicitly defines *who* the untrusted
 agents are and *where* they can interact with the design, relying on the pre-processed
 module entities in the KB.
 
+> **No-Internet Directive:** Perform this task using **only** the local
+> workspace, the target design files, and offline tools available in your
+> environment. Do **not** access the internet or use any web-fetching capability
+> (e.g., `curl`, `wget`, web search, or browser/`fetch` tools) to look up
+> documentation, specifications, protocol standards, CWE/CVE databases,
+> datasheets, or prior art. Rely solely on your own knowledge and the provided
+> local context.
+
 Execute the threat modeling process as follows:
 
 1. **Read the Synthesized KB:**

@@ -77,6 +77,14 @@ honestly (e.g. `failed_to_reproduce` or `not_attempted`), record what you tried,
 and let the finding proceed. Never halt the pipeline or discard a finding solely
 because it could not be recreated here.
 
+> **No-Internet Directive:** Perform this task using **only** the local
+> workspace, the target design files, and offline tools available in your
+> environment. Do **not** access the internet or use any web-fetching capability
+> (e.g., `curl`, `wget`, web search, or browser/`fetch` tools) to look up
+> documentation, specifications, protocol standards, CWE/CVE databases,
+> datasheets, or prior art. Rely solely on your own knowledge and the provided
+> local context.
+
 Execute the reproduction stage under these constraints:
 
 1. **Load Viable Findings:**
